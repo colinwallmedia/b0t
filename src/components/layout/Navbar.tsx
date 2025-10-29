@@ -26,7 +26,7 @@ export function Navbar() {
         </Link>
 
         {/* Center-Left: Brand Name */}
-        <div className="ml-10 flex-shrink-0">
+        <div className="ml-2 flex-shrink-0">
           <span className="text-[13px] font-light tracking-tight text-muted-foreground/60">
             Social Cat
           </span>

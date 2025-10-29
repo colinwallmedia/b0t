@@ -9,6 +9,7 @@ import {
   generateScheduledContent,
 } from '@/lib/jobs/twitter-ai';
 import { replyToTweetsJob } from '@/lib/jobs/twitter-reply';
+import { postTweetsJob } from '@/lib/jobs/twitter-post';
 import {
   checkAndReplyToYouTubeComments,
   fetchYouTubeCommentsForAnalysis,
@@ -29,6 +30,7 @@ import {
 const JOB_TASKS: Record<string, () => void | Promise<void>> = {
   'ai-tweet-generation': generateAndPostTweet,
   'reply-to-tweets': replyToTweetsJob,
+  'post-tweets': postTweetsJob,
   'generate-scheduled-content': generateScheduledContent,
   'analyze-trends': analyzeTrends,
   'check-youtube-comments': checkAndReplyToYouTubeComments,

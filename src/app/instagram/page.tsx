@@ -1,11 +1,11 @@
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { CompactAutomationRow } from '@/components/automation/CompactAutomationRow';
+import { WorkflowTile } from '@/components/automation/WorkflowTile';
 import { Instagram } from 'lucide-react';
 
 export default function InstagramPage() {
   return (
     <DashboardLayout>
-      <div className="p-6 space-y-4">
+      <div className="p-6 space-y-6">
         {/* Header */}
         <div className="space-y-1 animate-fade-in">
           <div className="flex items-center gap-2">
@@ -17,29 +17,23 @@ export default function InstagramPage() {
           <p className="text-xs text-secondary">Monitor and reply to comments & DMs</p>
         </div>
 
-        {/* Compact Automations List */}
-        <div className="space-y-2 animate-slide-up">
-          <CompactAutomationRow
+        {/* Workflow Tiles Grid */}
+        <div className="grid grid-cols-3 gap-4 animate-slide-up">
+          <WorkflowTile
             title="Reply to Comments"
+            description="Engage with your Instagram community by automatically responding to post comments with authentic, positive replies"
             jobName="instagram-reply-comments"
             defaultInterval="*/30 * * * *"
             defaultPrompt="You are a friendly Instagram creator. Reply to comments on your posts in an engaging, authentic way. Keep it brief and positive."
           />
 
-          <CompactAutomationRow
+          <WorkflowTile
             title="Reply to DMs"
+            description="Manage Instagram direct messages efficiently with AI-powered professional and helpful responses"
             jobName="instagram-reply-dms"
             defaultInterval="*/15 * * * *"
             defaultPrompt="You are a helpful assistant. Reply to Instagram direct messages professionally and helpfully. Be concise and friendly."
           />
-        </div>
-
-        {/* Setup Notice */}
-        <div className="mt-6 p-3 border border-border rounded-md bg-surface">
-          <p className="text-xs text-secondary">
-            <strong>Note:</strong> Instagram requires a Business or Creator account linked to a Facebook Page.
-            Configure in Settings once credentials are added.
-          </p>
         </div>
       </div>
     </DashboardLayout>

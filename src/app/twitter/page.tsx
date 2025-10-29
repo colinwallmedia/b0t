@@ -1,11 +1,11 @@
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { CompactAutomationRow } from '@/components/automation/CompactAutomationRow';
+import { WorkflowTile } from '@/components/automation/WorkflowTile';
 import { Twitter } from 'lucide-react';
 
 export default function TwitterPage() {
   return (
     <DashboardLayout>
-      <div className="p-6 space-y-4">
+      <div className="p-6 space-y-6">
         {/* Header */}
         <div className="space-y-1 animate-fade-in">
           <div className="flex items-center gap-2">
@@ -15,17 +15,19 @@ export default function TwitterPage() {
           <p className="text-xs text-secondary">Automate tweet generation and posting</p>
         </div>
 
-        {/* Compact Automations List */}
-        <div className="space-y-2 animate-slide-up">
-          <CompactAutomationRow
+        {/* Workflow Tiles Grid */}
+        <div className="grid grid-cols-3 gap-4 animate-slide-up">
+          <WorkflowTile
             title="Post Threads"
+            description="Create and post engaging Twitter threads automatically with AI-powered content generation from trending news"
             jobName="post-tweets"
             defaultInterval="0 */4 * * *"
             defaultPrompt="Create an engaging thread about this news. Write a cohesive narrative that flows naturally. Be insightful, authentic, and thought-provoking. Add your unique perspective and analysis."
           />
 
-          <CompactAutomationRow
+          <WorkflowTile
             title="Reply to Tweets"
+            description="Find and reply to relevant tweets with authentic, thoughtful responses that drive real engagement"
             jobName="reply-to-tweets"
             defaultInterval="*/15 * * * *"
             defaultSearchQuery="AI OR artificial intelligence"
