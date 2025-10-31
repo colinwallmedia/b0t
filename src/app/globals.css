@@ -3,20 +3,64 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Cozy Cat: Warm dark purple with playful orange accent */
-  --background: #1a1625;
-  --foreground: #f5f3ff;
+  /* Vercel-inspired design system - Dark first */
+  --radius: 0.5rem;
 
-  /* Surface colors */
-  --surface: #241d30;
-  --surface-hover: #2d2438;
+  /* Vercel grayscale palette - INVERTED for dark theme (higher number = lighter) */
+  --gray-1000: #fafafa;  /* Lightest */
+  --gray-900: #ededed;   /* Very light gray - body text */
+  --gray-800: #d4d4d4;
+  --gray-700: #a3a3a3;
+  --gray-600: #737373;
+  --gray-500: #525252;
+  --gray-400: #404040;
+  --gray-300: #262626;
+  --gray-200: #1a1a1a;
+  --gray-100: #171717;
+  --gray-50: #0a0a0a;    /* Darkest */
 
-  /* Text colors */
-  --text-primary: #f5f3ff;
-  --text-muted: #a599c8;
+  /* Background variants */
+  --background-100: #0d0d0d;
+  --background-200: #111111;
 
-  /* Accent - Warm coral/orange (cat energy!) */
-  --accent: #ff6b35;
+  /* Alpha variants for overlays */
+  --gray-alpha-100: rgba(255, 255, 255, 0.04);
+  --gray-alpha-200: rgba(255, 255, 255, 0.08);
+  --gray-alpha-300: rgba(255, 255, 255, 0.12);
+  --gray-alpha-400: rgba(255, 255, 255, 0.16);
+
+  /* Vercel blue accent */
+  --blue-500: #3b82f6;
+  --blue-600: #2563eb;
+  --blue-700: #1d4ed8;
+
+  /* Base dark theme */
+  --background: var(--gray-50);
+  --foreground: var(--gray-1000);
+  --card: var(--gray-100);
+  --card-foreground: var(--gray-1000);
+  --popover: var(--gray-100);
+  --popover-foreground: var(--gray-1000);
+  --primary: var(--gray-1000);
+  --primary-foreground: var(--gray-50);
+  --secondary: var(--gray-700);
+  --secondary-foreground: var(--gray-1000);
+  --muted: var(--gray-200);
+  --muted-foreground: var(--gray-700);
+  --accent: var(--gray-200);
+  --accent-foreground: var(--gray-1000);
+  --destructive: #ef4444;
+  --destructive-foreground: var(--gray-1000);
+  --border: var(--gray-300);
+  --input: var(--gray-200);
+  --ring: var(--gray-600);
+
+  /* Chart colors */
+  --chart-1: var(--blue-500);
+  --chart-2: #10b981;
+  --chart-3: #f59e0b;
+  --chart-4: #8b5cf6;
+  --chart-5: #ec4899;
 
   /* Platform brand colors */
   --twitter-blue: #1DA1F2;
@@ -24,57 +68,46 @@
   --instagram-gradient-start: #f09433;
   --instagram-gradient-end: #bc1888;
   --success-green: #10b981;
-
-  /* Borders */
-  --border: #3a2f4a;
-  --border-hover: #4d4060;
-
-  /* Radius */
-  --radius: 0.5rem;
-
-  /* shadcn color mappings */
-  --card: var(--surface);
-  --card-foreground: var(--text-primary);
-  --popover: #2a2135;
-  --popover-foreground: var(--text-primary);
-  --primary: var(--accent);
-  --primary-foreground: #ffffff;
-  --secondary: var(--text-muted);
-  --secondary-foreground: var(--text-primary);
-  --muted: #2d2438;
-  --muted-foreground: var(--text-muted);
-  --destructive: #ff4444;
-  --destructive-foreground: #ffffff;
-  --input: #241d30;
-  --ring: var(--accent);
 }
 
 @theme inline {
-  /* Main colors */
+  /* Radius tokens */
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* Grayscale palette */
+  --color-gray-50: var(--gray-50);
+  --color-gray-100: var(--gray-100);
+  --color-gray-200: var(--gray-200);
+  --color-gray-300: var(--gray-300);
+  --color-gray-400: var(--gray-400);
+  --color-gray-500: var(--gray-500);
+  --color-gray-600: var(--gray-600);
+  --color-gray-700: var(--gray-700);
+  --color-gray-800: var(--gray-800);
+  --color-gray-900: var(--gray-900);
+  --color-gray-1000: var(--gray-1000);
+
+  /* Background variants */
+  --color-background-100: var(--background-100);
+  --color-background-200: var(--background-200);
+
+  /* Alpha variants */
+  --color-gray-alpha-100: var(--gray-alpha-100);
+  --color-gray-alpha-200: var(--gray-alpha-200);
+  --color-gray-alpha-300: var(--gray-alpha-300);
+  --color-gray-alpha-400: var(--gray-alpha-400);
+
+  /* Blue accent */
+  --color-blue-500: var(--blue-500);
+  --color-blue-600: var(--blue-600);
+  --color-blue-700: var(--blue-700);
+
+  /* Base color mappings */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-surface: var(--surface);
-  --color-surface-hover: var(--surface-hover);
-
-  /* Text */
-  --color-text-primary: var(--text-primary);
-  --color-text-muted: var(--text-muted);
-
-  /* Accent */
-  --color-accent: var(--accent);
-
-  /* Platform brand colors */
-  --color-twitter-blue: var(--twitter-blue);
-  --color-youtube-red: var(--youtube-red);
-  --color-instagram-gradient-start: var(--instagram-gradient-start);
-  --color-instagram-gradient-end: var(--instagram-gradient-end);
-  --color-success-green: var(--success-green);
-
-  /* Borders */
-  --color-border: var(--border);
-  --color-border-hover: var(--border-hover);
-
-  /* shadcn mappings */
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
@@ -85,67 +118,196 @@
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
-  --color-accent-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --radius-sm: calc(var(--radius) - 0.125rem);
-  --radius-md: var(--radius);
-  --radius-lg: calc(var(--radius) + 0.125rem);
-  --radius-xl: calc(var(--radius) + 0.25rem);
+
+  /* Chart colors */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Platform brand colors */
+  --color-twitter-blue: var(--twitter-blue);
+  --color-youtube-red: var(--youtube-red);
+  --color-instagram-gradient-start: var(--instagram-gradient-start);
+  --color-instagram-gradient-end: var(--instagram-gradient-end);
+  --color-success-green: var(--success-green);
 }
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-border outline-ring/50;
   }
 
   body {
-    @apply bg-background;
-    font-family: var(--font-body);
-    color: var(--text-primary);
+    @apply bg-background text-foreground;
+    font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 0.875rem; /* 14px - Vercel's base font size */
+    line-height: 1.5;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
-  h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-heading);
+  h1 {
+    @apply text-foreground;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  h2 {
+    @apply text-foreground;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  h3 {
+    @apply text-foreground;
     font-weight: 500;
-    color: var(--text-primary);
+    line-height: 1.4;
   }
 
-  p, span, div, label, input, textarea, button {
-    color: var(--text-primary);
+  /* Vercel-style text sizing utilities */
+  .text-12 {
+    font-size: 0.75rem; /* 12px */
+    line-height: 1rem;
+    font-weight: 400;
   }
 
-  /* Muted text utility */
-  .text-secondary {
-    color: var(--text-muted) !important;
+  .text-14 {
+    font-size: 0.875rem; /* 14px */
+    line-height: 1.25rem;
+    font-weight: 400;
+  }
+
+  .text-16 {
+    font-size: 1rem; /* 16px */
+    line-height: 1.5rem;
+    font-weight: 400;
+  }
+
+  /* Card text utilities */
+  .card-title {
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.25rem;
+  }
+
+  .card-stat-large {
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  .card-stat-medium {
+    font-size: 1.25rem;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  .card-label {
+    font-size: 0.75rem;
+    font-weight: 400;
+    line-height: 1rem;
+  }
+
+  /* Section header */
+  .section-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  /* Page header */
+  .page-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  .page-description {
+    font-size: 0.875rem;
+    font-weight: 400;
+    line-height: 1.25rem;
   }
 }
 
-h1 { font-size: 1.5rem; line-height: 1.2; }
-h2 { font-size: 1.25rem; line-height: 1.3; }
-h3 { font-size: 1.125rem; line-height: 1.4; }
-h4 { font-size: 1rem; line-height: 1.4; }
-h5 { font-size: 0.875rem; line-height: 1.5; }
-h6 { font-size: 0.875rem; line-height: 1.5; }
+@layer utilities {
+  /* Vercel-inspired utility classes */
+  .bg-surface {
+    background-color: var(--card);
+  }
 
-/* Fun animations */
-@keyframes bounce-subtle {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
+  .bg-surface-hover {
+    background-color: var(--muted);
+  }
+
+  /* Material elevation shadows (Vercel style with layered border effect) */
+  .material-small {
+    position: relative;
+    background: var(--gray-300);
+    border-radius: calc(var(--radius) + 1px);
+    padding: 1px;
+    overflow: hidden;
+  }
+
+  .material-small > * {
+    background: var(--gray-100);
+    border-radius: var(--radius);
+    padding: 1.5rem; /* 24px padding all around */
+    min-height: 100%;
+  }
+
+  .material-medium {
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+    border-radius: var(--radius);
+  }
+
+  /* Striped list hover effect (Vercel style) */
+  .striped-list > *:nth-child(odd) {
+    background-color: var(--gray-alpha-100);
+  }
+
+  .striped-list:has(*:hover) > *:nth-child(odd) {
+    background-color: transparent;
+  }
+
+  .striped-list > *:hover {
+    background-color: var(--gray-alpha-200);
+  }
+
+  /* Text utilities */
+  .text-label-12 {
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+
+  .text-label-14 {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
 }
 
-@keyframes pulse-success {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.9; transform: scale(1.05); }
+/* Ensure consistent font rendering across different DPI levels */
+@media (-webkit-min-device-pixel-ratio: 1.5), (min-resolution: 144dpi) {
+  body {
+    -webkit-font-smoothing: subpixel-antialiased;
+  }
 }
 
-@keyframes shimmer {
-  0% { background-position: -1000px 0; }
-  100% { background-position: 1000px 0; }
+/* Smooth scrolling for the entire page */
+html {
+  scroll-behavior: smooth;
 }
 
+/* Professional animations */
 @keyframes slide-up {
   from {
     opacity: 0;
@@ -162,74 +324,19 @@ h6 { font-size: 0.875rem; line-height: 1.5; }
   to { opacity: 1; }
 }
 
-@keyframes pounce {
-  0% { transform: scale(1) rotate(0deg); }
-  50% { transform: scale(1.05) rotate(1deg); }
-  100% { transform: scale(1) rotate(0deg); }
-}
-
-/* Cat mascot animations */
-@keyframes cat-sleep {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(2px); }
-}
-
-@keyframes cat-excited {
-  0%, 100% { transform: scale(1) rotate(0deg); }
-  25% { transform: scale(1.1) rotate(-5deg); }
-  75% { transform: scale(1.1) rotate(5deg); }
-}
-
-@keyframes cat-stretch {
-  0%, 100% { transform: scaleX(1) scaleY(1); }
-  50% { transform: scaleX(1.15) scaleY(0.9); }
-}
-
-@keyframes cat-grumpy {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(-3deg); }
-  50% { transform: rotate(3deg); }
-  75% { transform: rotate(-3deg); }
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
 }
 
 /* Utility classes for animations */
 @media (prefers-reduced-motion: no-preference) {
-  .animate-bounce-subtle {
-    animation: bounce-subtle 0.6s ease-in-out;
-  }
-
-  .animate-pulse-success {
-    animation: pulse-success 1s ease-in-out infinite;
-  }
-
   .animate-slide-up {
     animation: slide-up 0.3s ease-out;
   }
 
   .animate-fade-in {
     animation: fade-in 0.3s ease-out;
-  }
-
-  /* Cat mascot animations */
-  .animate-cat-sleep {
-    animation: cat-sleep 3s ease-in-out infinite;
-  }
-
-  .animate-cat-excited {
-    animation: cat-excited 0.6s ease-in-out;
-  }
-
-  .animate-cat-stretch {
-    animation: cat-stretch 1s ease-in-out;
-  }
-
-  .animate-cat-grumpy {
-    animation: cat-grumpy 0.4s ease-in-out;
-  }
-
-  /* Cat-themed pounce animation for buttons */
-  button:not(:disabled):hover {
-    animation: pounce 0.3s ease-out;
   }
 }
 

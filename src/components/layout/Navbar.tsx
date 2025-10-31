@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Workflow } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard' },
@@ -15,45 +15,51 @@ const navigation = [
 
 export function Navbar() {
   const pathname = usePathname();
+  const [activeIndicator, setActiveIndicator] = useState({ left: 0, width: 0 });
+  const navRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!navRef.current) return;
+
+    const activeLink = navRef.current.querySelector('[data-active="true"]') as HTMLElement;
+    if (activeLink) {
+      setActiveIndicator({
+        left: activeLink.offsetLeft,
+        width: activeLink.offsetWidth,
+      });
+    }
+  }, [pathname]);
 
   return (
-    <nav className="border-b border-border/50 bg-background">
-      <div className="flex h-16 items-center px-8">
-        {/* Left: Logo */}
-        <Link href="/dashboard" className="flex items-center group">
-          <Workflow className="h-[18px] w-[18px] text-foreground/90 transition-all duration-200 group-hover:text-foreground group-hover:scale-110" />
-        </Link>
+    <nav className="sticky top-0 z-40 bg-background-100 shadow-[inset_0_-1px] shadow-gray-alpha-400">
+      <div className="flex h-[46px] items-center px-2 md:px-4 relative" ref={navRef}>
+        {navigation.map((item) => {
+          const isActive = pathname === item.href;
 
-        {/* Center-Left: Brand Name */}
-        <div className="ml-2 flex-shrink-0">
-          <span className="text-[13px] font-light tracking-tight text-muted-foreground/60">
-            b0t
-          </span>
-        </div>
+          return (
+            <Link
+              key={item.name}
+              href={item.href}
+              data-active={isActive}
+              className={`
+                relative inline-block select-none px-3 py-4 no-underline transition-colors duration-200 text-14
+                ${isActive ? 'text-gray-1000' : 'text-gray-900 hover:text-gray-1000'}
+              `}
+              style={{ outlineOffset: '-6px', lineHeight: '0.875rem' }}
+            >
+              {item.name}
+            </Link>
+          );
+        })}
 
-        {/* Right: Navigation Links */}
-        <div className="ml-auto flex items-center gap-8">
-          {navigation.map((item) => {
-            const isActive = pathname === item.href;
-
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`
-                  text-[13px] font-light tracking-tight transition-all duration-200
-                  ${
-                    isActive
-                      ? 'text-foreground/90'
-                      : 'text-muted-foreground/60 hover:text-foreground/90'
-                  }
-                `}
-              >
-                {item.name}
-              </Link>
-            );
-          })}
-        </div>
+        {/* Animated underline indicator */}
+        <div
+          className="absolute bottom-0 left-0 h-[2px] bg-foreground transition-transform duration-150 origin-left"
+          style={{
+            transform: `translateX(${activeIndicator.left}px) scaleX(${activeIndicator.width > 0 ? activeIndicator.width / 100 : 0})`,
+            width: '100px',
+          }}
+        />
       </div>
     </nav>
   );

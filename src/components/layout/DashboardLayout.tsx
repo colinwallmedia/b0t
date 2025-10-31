@@ -1,5 +1,6 @@
 'use client';
 
+import { Header } from './Header';
 import { Navbar } from './Navbar';
 import { DecorativePaws } from '@/components/ui/decorative-paws';
 import { useKonamiCode } from '@/hooks/use-konami-code';
@@ -32,6 +33,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <div className="min-h-screen bg-background relative">
       <DecorativePaws />
+      <Header />
       <Navbar />
       <main className="w-full relative z-10">
         {children}

@@ -9,12 +9,6 @@ export default function ContentPage() {
   return (
     <DashboardLayout>
       <div className="p-6 space-y-6">
-        {/* Header */}
-        <div className="space-y-1 animate-fade-in">
-          <h1 className="font-black text-2xl tracking-tight">Content</h1>
-          <p className="text-xs text-secondary">Automate content creation and publishing</p>
-        </div>
-
         {/* Platform Tabs */}
         <Tabs defaultValue="wordpress" className="w-full animate-slide-up">
           <TabsList>

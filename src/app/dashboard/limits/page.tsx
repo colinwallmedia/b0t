@@ -9,16 +9,7 @@ import {
   flexRender,
   SortingState,
 } from '@tanstack/react-table';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { AlertTriangle, ArrowUpDown, Zap, Twitter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -380,16 +371,8 @@ export default function LimitsPage() {
   return (
     <DashboardLayout>
       <div className="p-6 space-y-4">
-        {/* Header with Tier Selector */}
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1 flex-1">
-            <h1 className="font-black text-2xl tracking-tight">API Limits</h1>
-            <p className="text-xs text-secondary">
-              Monitor usage across platforms
-            </p>
-          </div>
-
-          {/* Tier Dropdown */}
+        {/* Tier Selector */}
+        <div className="flex items-start justify-end gap-4">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 text-xs text-secondary">
               <Zap className="h-3.5 w-3.5 text-primary" />
@@ -410,63 +393,63 @@ export default function LimitsPage() {
           </div>
         </div>
 
-        {/* Twitter Limits Card */}
-        <Card className="border-border bg-surface">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-bold flex items-center gap-2">
-              <Twitter className="h-4 w-4 text-accent" />
-              Twitter API Limits
-              <span className="text-[10px] text-secondary font-normal ml-1">
-                ({tierConfig.cost === 0 ? 'Free' : `$${tierConfig.cost.toLocaleString()}/mo`})
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {/* Table */}
-            <div className="rounded-md border border-border overflow-hidden">
-              <Table>
-                <TableHeader>
-                  {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id}>
-                      {headerGroup.headers.map((header) => (
-                        <TableHead key={header.id} className="h-9">
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
-                        </TableHead>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableHeader>
-                <TableBody>
-                  {table.getRowModel().rows?.length ? (
-                    table.getRowModel().rows.map((row) => (
-                      <TableRow
-                        key={row.id}
-                        data-state={row.getIsSelected() && 'selected'}
+        {/* Twitter Limits Table */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 text-sm">
+            <Twitter className="h-4 w-4 text-accent" />
+            <span className="font-medium">Twitter API Limits</span>
+            <span className="text-xs text-secondary">
+              ({tierConfig.cost === 0 ? 'Free' : `$${tierConfig.cost.toLocaleString()}/mo`})
+            </span>
+          </div>
+
+          {/* Table */}
+          <div className="border border-border rounded-lg overflow-hidden bg-surface">
+            <table className="w-full">
+              <thead>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <tr key={headerGroup.id} className="border-b border-border bg-muted/30">
+                    {headerGroup.headers.map((header) => (
+                      <th
+                        key={header.id}
+                        className="px-4 py-2.5 text-left text-xs font-medium text-secondary"
                       >
-                        {row.getVisibleCells().map((cell) => (
-                          <TableCell key={cell.id} className="py-3">
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={columns.length} className="h-24 text-center">
-                        <div className="text-sm text-secondary">No data</div>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                      </th>
+                    ))}
+                  </tr>
+                ))}
+              </thead>
+              <tbody>
+                {table.getRowModel().rows?.length ? (
+                  table.getRowModel().rows.map((row) => (
+                    <tr
+                      key={row.id}
+                      className="border-b border-border/50 hover:bg-muted/20 transition-colors"
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <td key={cell.id} className="px-4 py-3">
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={columns.length} className="h-24 text-center">
+                      <div className="text-sm text-secondary">No data</div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
         {/* Info Footer */}
         <div className="text-xs text-secondary flex items-start gap-2 px-1">

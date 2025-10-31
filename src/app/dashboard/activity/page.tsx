@@ -153,13 +153,6 @@ export default function ActivityPage() {
   return (
     <DashboardLayout>
       <div className="p-6 space-y-4">
-        {/* Header */}
-        <div className="space-y-1 animate-fade-in">
-          <h1 className="font-black text-2xl tracking-tight">Activity</h1>
-          <p className="text-xs text-secondary">
-            Job execution history • Auto-refreshes every 10s
-          </p>
-        </div>
 
         {/* Activity Table */}
         <div className="animate-slide-up">
