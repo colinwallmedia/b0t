@@ -160,10 +160,10 @@ export default function ActivityPage() {
           {loading ? (
             <TableSkeleton rows={10} />
           ) : logs.length === 0 ? (
-            <div className="text-center py-12 text-secondary space-y-1">
-              <Clock className="h-8 w-8 mx-auto mb-2 opacity-30" />
-              <p className="text-sm">No activity logs yet</p>
-              <p className="text-xs opacity-60">Enable workflows to see activity here</p>
+            <div className="text-center py-12 border-2 border-dashed rounded-lg">
+              <p className="text-muted-foreground">
+                No activity logs yet. Run a workflow to get started.
+              </p>
             </div>
           ) : (
             <div className="space-y-3">

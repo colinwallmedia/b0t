@@ -35,18 +35,10 @@ export function WorkflowsList({
 
   if (workflows.length === 0) {
     return (
-      <div className="text-center py-16 border-2 border-dashed rounded-lg bg-muted/30">
-        <div className="max-w-md mx-auto space-y-4">
-          <h3 className="text-lg font-semibold">No workflows yet</h3>
-          <p className="text-sm text-muted-foreground">
-            Get started by creating your first workflow using AI
-          </p>
-          <div className="flex flex-col gap-2 text-sm text-muted-foreground text-left">
-            <p>• Chat with AI to generate workflows</p>
-            <p>• Import existing workflow JSON files</p>
-            <p>• Browse templates (coming soon)</p>
-          </div>
-        </div>
+      <div className="text-center py-12 border-2 border-dashed rounded-lg">
+        <p className="text-muted-foreground">
+          No workflows yet. Create one to get started.
+        </p>
       </div>
     );
   }

@@ -8,32 +8,8 @@
  * - BullMQ (persistent jobs) if REDIS_URL is set
  * - node-cron (simple scheduler) if Redis is not available
  *
- * Note: This only runs in production or when NODE_ENV is set to 'production'
- * For development, you need to enable it in next.config.ts
+ * Note: Next.js automatically loads .env files, no need for manual dotenv loading
  */
-
-// Force load environment variables before anything else
-if (typeof process !== 'undefined' && process.env.NODE_ENV !== 'production') {
-  // In development, manually load .env.local before any imports
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { config } = require('dotenv');
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { expand } = require('dotenv-expand');
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const path = require('path');
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const fs = require('fs');
-
-    const envLocalPath = path.resolve(process.cwd(), '.env.local');
-    if (fs.existsSync(envLocalPath)) {
-      const myEnv = config({ path: envLocalPath });
-      expand(myEnv);
-    }
-  } catch {
-    // Dotenv might not be available, Next.js will handle it
-  }
-}
 
 export async function register() {
   // Only run in Node.js runtime (not Edge)
@@ -91,28 +67,33 @@ export async function register() {
       }
     }
 
-    logger.info('Initializing scheduler from instrumentation');
-    await initializeScheduler();
+    // Initialize scheduler in background to avoid blocking
+    initializeScheduler().catch(error => {
+      logger.error({ error }, 'Failed to initialize scheduler');
+    });
 
     // Initialize workflow queue and scheduler
-    logger.info('Initializing workflow execution system');
     const { initializeWorkflowQueue } = await import('./lib/workflows/workflow-queue');
     const { workflowScheduler } = await import('./lib/workflows/workflow-scheduler');
 
     // Initialize workflow queue (10 concurrent workflows by default)
-    const queueInitialized = await initializeWorkflowQueue({
+    // Note: Queue initialization runs in background, don't await the worker
+    initializeWorkflowQueue({
       concurrency: 10,  // Run up to 10 workflows simultaneously
       maxJobsPerMinute: 100,  // Rate limit: max 100 workflow executions per minute
+    }).then(queueInitialized => {
+      if (queueInitialized) {
+        logger.info('✅ Workflow queue initialized (Redis-backed)');
+      } else {
+        logger.info('⚠️  Workflow queue disabled (no Redis) - using direct execution');
+      }
+    }).catch(error => {
+      logger.error({ error }, 'Failed to initialize workflow queue');
     });
 
-    if (queueInitialized) {
-      logger.info('✅ Workflow queue initialized (Redis-backed)');
-    } else {
-      logger.info('⚠️  Workflow queue disabled (no Redis) - using direct execution');
-    }
-
     // Initialize workflow scheduler (for cron triggers)
-    await workflowScheduler.initialize();
-    logger.info('✅ Workflow scheduler initialized');
+    workflowScheduler.initialize().catch(error => {
+      logger.error({ error }, 'Failed to initialize workflow scheduler');
+    });
   }
 }

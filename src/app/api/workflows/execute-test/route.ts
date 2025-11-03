@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sqliteDb } from '@/lib/db';
-import { workflowsTableSQLite } from '@/lib/schema';
+import { postgresDb } from '@/lib/db';
+import { workflowsTablePostgres, organizationsTablePostgres } from '@/lib/schema';
 import { importWorkflow } from '@/lib/workflows/import-export';
 import { executeWorkflow } from '@/lib/workflows/executor';
 import { randomUUID } from 'crypto';
@@ -53,28 +53,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!sqliteDb) {
+    if (!postgresDb) {
       throw new Error('Database not initialized');
+    }
+
+    // Create test organization if it doesn't exist
+    const testOrgId = 'test-org-1';
+    const existingOrg = await postgresDb
+      .select()
+      .from(organizationsTablePostgres)
+      .where(eq(organizationsTablePostgres.id, testOrgId))
+      .limit(1);
+
+    if (existingOrg.length === 0) {
+      await postgresDb.insert(organizationsTablePostgres).values({
+        id: testOrgId,
+        name: 'Test Organization',
+        slug: 'test-org',
+        ownerId: '1', // Test user owns the test organization
+      });
     }
 
     // Create workflow in database (use test user ID '1')
     const workflowId = randomUUID();
-    const now = new Date();
 
-    await sqliteDb.insert(workflowsTableSQLite).values({
+    await postgresDb.insert(workflowsTablePostgres).values({
       id: workflowId,
       userId: '1', // Test user
+      organizationId: testOrgId,
       name: workflow.name,
       description: workflow.description,
       prompt: `Test workflow: ${workflow.name}`,
-      config: workflow.config,
-      trigger: { type: 'manual', config: {} },
+      config: JSON.stringify(workflow.config),
+      trigger: JSON.stringify({ type: 'manual', config: {} }),
       status: 'draft',
-      createdAt: now,
-      lastRun: null,
-      lastRunStatus: null,
-      lastRunError: null,
-      runCount: 0,
     });
 
     logger.info(
@@ -91,9 +103,9 @@ export async function POST(request: NextRequest) {
     const duration = Date.now() - startTime;
 
     // Clean up - delete the test workflow
-    await sqliteDb
-      .delete(workflowsTableSQLite)
-      .where(eq(workflowsTableSQLite.id, workflowId));
+    await postgresDb
+      .delete(workflowsTablePostgres)
+      .where(eq(workflowsTablePostgres.id, workflowId));
 
     logger.info(
       {

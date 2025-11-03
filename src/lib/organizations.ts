@@ -2,7 +2,16 @@ import { db } from './db';
 import { organizationsTable, organizationMembersTable, type Organization, type OrganizationMember } from './schema';
 import { eq, and } from 'drizzle-orm';
 import slugify from 'slugify';
-import { randomUUID } from 'crypto';
+
+// Use Web Crypto API for Edge Runtime compatibility
+const getRandomUUID = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for Node.js
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return require('crypto').randomUUID();
+};
 
 export type OrganizationRole = 'owner' | 'admin' | 'member' | 'viewer';
 
@@ -14,7 +23,7 @@ export async function createOrganization(
   ownerId: string,
   plan: 'free' | 'pro' | 'enterprise' = 'free'
 ): Promise<Organization> {
-  const id = randomUUID();
+  const id = getRandomUUID();
 
   // Generate unique slug
   let slug = slugify(name, { lower: true, strict: true });
@@ -45,7 +54,7 @@ export async function createOrganization(
   // Add owner as member
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (db as any).insert(organizationMembersTable).values({
-    id: randomUUID(),
+    id: getRandomUUID(),
     organizationId: id,
     userId: ownerId,
     role: 'owner',
@@ -153,7 +162,7 @@ export async function addOrganizationMember(
   userId: string,
   role: OrganizationRole = 'member'
 ): Promise<OrganizationMember> {
-  const id = randomUUID();
+  const id = getRandomUUID();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (db as any).insert(organizationMembersTable).values({

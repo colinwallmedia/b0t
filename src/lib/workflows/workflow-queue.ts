@@ -1,4 +1,4 @@
-import { createQueue, createWorker, addJob, queues, workers } from '../queue';
+import { createQueue, createWorker, addJob, queues } from '../queue';
 import { executeWorkflow } from './executor';
 import { logger } from '../logger';
 
@@ -17,7 +17,7 @@ import { logger } from '../logger';
  * - Failed workflows retry automatically
  */
 
-export const WORKFLOW_QUEUE_NAME = 'workflows:execution';
+export const WORKFLOW_QUEUE_NAME = 'workflows-execution';
 
 export interface WorkflowJobData {
   workflowId: string;
@@ -43,8 +43,6 @@ export async function initializeWorkflowQueue(options?: {
   }
 
   try {
-    logger.info({ concurrency, maxJobsPerMinute }, 'Initializing workflow execution queue');
-
     // Create queue for workflow execution
     createQueue(WORKFLOW_QUEUE_NAME, {
       defaultJobOptions: {
@@ -101,17 +99,20 @@ export async function initializeWorkflowQueue(options?: {
       }
     );
 
-    // Start the worker
-    const worker = workers.get(WORKFLOW_QUEUE_NAME);
-    if (worker) {
-      await worker.run();
-      logger.info('Workflow execution worker started');
-    }
-
-    logger.info('Workflow execution queue initialized successfully');
+    // Worker starts automatically when created
     return true;
   } catch (error) {
-    logger.error({ error }, 'Failed to initialize workflow queue');
+    // Provide detailed error logging
+    logger.error(
+      {
+        error: error instanceof Error ? {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        } : error
+      },
+      'Failed to initialize workflow queue'
+    );
     return false;
   }
 }

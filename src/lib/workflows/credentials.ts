@@ -1,5 +1,5 @@
-import { sqliteDb } from '@/lib/db';
-import { userCredentialsTableSQLite } from '@/lib/schema';
+import { postgresDb } from '@/lib/db';
+import { userCredentialsTablePostgres } from '@/lib/schema';
 import { encrypt, decrypt } from '@/lib/encryption';
 import { eq, and } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
@@ -29,14 +29,14 @@ export async function storeCredential(
 ): Promise<{ id: string }> {
   logger.info({ userId, platform: input.platform, type: input.type }, 'Storing credential');
 
-  if (!sqliteDb) {
+  if (!postgresDb) {
     throw new Error('Database not initialized');
   }
 
   const id = randomUUID();
   const encryptedValue = encrypt(input.value);
 
-  await sqliteDb.insert(userCredentialsTableSQLite).values({
+  await postgresDb.insert(userCredentialsTablePostgres).values({
     id,
     userId,
     platform: input.platform.toLowerCase(),
@@ -60,17 +60,17 @@ export async function getCredential(
 ): Promise<string | null> {
   logger.info({ userId, platform }, 'Retrieving credential');
 
-  if (!sqliteDb) {
+  if (!postgresDb) {
     throw new Error('Database not initialized');
   }
 
-  const credentials = await sqliteDb
+  const credentials = await postgresDb
     .select()
-    .from(userCredentialsTableSQLite)
+    .from(userCredentialsTablePostgres)
     .where(
       and(
-        eq(userCredentialsTableSQLite.userId, userId),
-        eq(userCredentialsTableSQLite.platform, platform.toLowerCase())
+        eq(userCredentialsTablePostgres.userId, userId),
+        eq(userCredentialsTablePostgres.platform, platform.toLowerCase())
       )
     )
     .limit(1);
@@ -83,10 +83,10 @@ export async function getCredential(
   const credential = credentials[0];
 
   // Update last used timestamp
-  await sqliteDb
-    .update(userCredentialsTableSQLite)
+  await postgresDb
+    .update(userCredentialsTablePostgres)
     .set({ lastUsed: new Date() })
-    .where(eq(userCredentialsTableSQLite.id, credential.id));
+    .where(eq(userCredentialsTablePostgres.id, credential.id));
 
   const decryptedValue = decrypt(credential.encryptedValue);
 
@@ -108,21 +108,21 @@ export async function listCredentials(userId: string): Promise<
     lastUsed: Date | null;
   }>
 > {
-  if (!sqliteDb) {
+  if (!postgresDb) {
     throw new Error('Database not initialized');
   }
 
-  const credentials = await sqliteDb
+  const credentials = await postgresDb
     .select({
-      id: userCredentialsTableSQLite.id,
-      platform: userCredentialsTableSQLite.platform,
-      name: userCredentialsTableSQLite.name,
-      type: userCredentialsTableSQLite.type,
-      createdAt: userCredentialsTableSQLite.createdAt,
-      lastUsed: userCredentialsTableSQLite.lastUsed,
+      id: userCredentialsTablePostgres.id,
+      platform: userCredentialsTablePostgres.platform,
+      name: userCredentialsTablePostgres.name,
+      type: userCredentialsTablePostgres.type,
+      createdAt: userCredentialsTablePostgres.createdAt,
+      lastUsed: userCredentialsTablePostgres.lastUsed,
     })
-    .from(userCredentialsTableSQLite)
-    .where(eq(userCredentialsTableSQLite.userId, userId));
+    .from(userCredentialsTablePostgres)
+    .where(eq(userCredentialsTablePostgres.userId, userId));
 
   return credentials;
 }
@@ -133,16 +133,16 @@ export async function listCredentials(userId: string): Promise<
 export async function deleteCredential(userId: string, credentialId: string): Promise<void> {
   logger.info({ userId, credentialId }, 'Deleting credential');
 
-  if (!sqliteDb) {
+  if (!postgresDb) {
     throw new Error('Database not initialized');
   }
 
-  await sqliteDb
-    .delete(userCredentialsTableSQLite)
+  await postgresDb
+    .delete(userCredentialsTablePostgres)
     .where(
       and(
-        eq(userCredentialsTableSQLite.id, credentialId),
-        eq(userCredentialsTableSQLite.userId, userId)
+        eq(userCredentialsTablePostgres.id, credentialId),
+        eq(userCredentialsTablePostgres.userId, userId)
       )
     );
 
@@ -159,19 +159,19 @@ export async function updateCredential(
 ): Promise<void> {
   logger.info({ userId, credentialId }, 'Updating credential');
 
-  if (!sqliteDb) {
+  if (!postgresDb) {
     throw new Error('Database not initialized');
   }
 
   const encryptedValue = encrypt(newValue);
 
-  await sqliteDb
-    .update(userCredentialsTableSQLite)
+  await postgresDb
+    .update(userCredentialsTablePostgres)
     .set({ encryptedValue })
     .where(
       and(
-        eq(userCredentialsTableSQLite.id, credentialId),
-        eq(userCredentialsTableSQLite.userId, userId)
+        eq(userCredentialsTablePostgres.id, credentialId),
+        eq(userCredentialsTablePostgres.userId, userId)
       )
     );
 

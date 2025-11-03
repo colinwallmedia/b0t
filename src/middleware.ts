@@ -14,10 +14,13 @@ export default auth((req) => {
 
   // Define public routes (no authentication required)
   // Note: Root path "/" is handled by page.tsx which checks auth and redirects appropriately
-  const publicRoutes = ['/auth/signin', '/auth/error', '/api/auth'];
-
-  // In development, allow access to all pages for easier testing
-  const isDevelopment = process.env.NODE_ENV === 'development';
+  const publicRoutes = [
+    '/auth/signin',
+    '/auth/error',
+    '/api/auth',
+    '/api/workflows/import-test',  // Test endpoint for development
+    '/api/workflows/execute-test', // Test endpoint for development
+  ];
 
   // Check if the current path is public or is the root path
   const isPublicRoute = publicRoutes.some((route) =>
@@ -28,8 +31,7 @@ export default auth((req) => {
   const isRootPath = pathname === '/';
 
   // If route is not public, not root, and user is not authenticated, redirect to signin
-  // Skip auth check in development mode
-  if (!isPublicRoute && !isRootPath && !isAuthenticated && !isDevelopment) {
+  if (!isPublicRoute && !isRootPath && !isAuthenticated) {
     const signInUrl = new URL('/auth/signin', req.url);
     signInUrl.searchParams.set('callbackUrl', pathname);
     return NextResponse.redirect(signInUrl);

@@ -1,6 +1,6 @@
 import cron, { ScheduledTask } from 'node-cron';
-import { sqliteDb, useSQLite } from '@/lib/db';
-import { workflowsTableSQLite } from '@/lib/schema';
+import { useSQLite, sqliteDb, postgresDb } from '@/lib/db';
+import { workflowsTableSQLite, workflowsTablePostgres } from '@/lib/schema';
 import { sql } from 'drizzle-orm';
 import { logger } from '@/lib/logger';
 import { queueWorkflowExecution, isWorkflowQueueAvailable } from './workflow-queue';
@@ -39,15 +39,15 @@ class WorkflowScheduler {
       return;
     }
 
-    logger.info('Initializing workflow scheduler');
-
     try {
       await this.syncWorkflows();
       this.isInitialized = true;
-      logger.info(
-        { scheduledCount: this.scheduledWorkflows.size },
-        'Workflow scheduler initialized'
-      );
+      if (this.scheduledWorkflows.size > 0) {
+        logger.info(
+          { scheduledCount: this.scheduledWorkflows.size },
+          'Workflow scheduler initialized with cron workflows'
+        );
+      }
     } catch (error) {
       logger.error({ error }, 'Failed to initialize workflow scheduler');
       throw error;
@@ -59,32 +59,53 @@ class WorkflowScheduler {
    * Scans for active workflows with cron triggers and schedules them
    */
   async syncWorkflows() {
-    if (!useSQLite || !sqliteDb) {
-      logger.warn('Database not available - cannot sync workflows');
-      return;
-    }
-
     try {
-      logger.info('Syncing workflows from database');
 
-      // Get all active workflows with cron triggers
-      const workflows = await sqliteDb
-        .select({
-          id: workflowsTableSQLite.id,
-          name: workflowsTableSQLite.name,
-          userId: workflowsTableSQLite.userId,
-          trigger: workflowsTableSQLite.trigger,
-          status: workflowsTableSQLite.status,
-        })
-        .from(workflowsTableSQLite)
-        .where(
-          sql`
-            ${workflowsTableSQLite.status} = 'active' AND
-            json_extract(${workflowsTableSQLite.trigger}, '$.type') = 'cron'
-          `
-        );
+      let workflows: Array<{
+        id: string;
+        name: string;
+        userId: string;
+        trigger: unknown;
+        status: string;
+      }> = [];
 
-      logger.info({ count: workflows.length }, 'Found active cron workflows');
+      // Get all active workflows with cron triggers based on database type
+      if (useSQLite && sqliteDb) {
+        workflows = await sqliteDb
+          .select({
+            id: workflowsTableSQLite.id,
+            name: workflowsTableSQLite.name,
+            userId: workflowsTableSQLite.userId,
+            trigger: workflowsTableSQLite.trigger,
+            status: workflowsTableSQLite.status,
+          })
+          .from(workflowsTableSQLite)
+          .where(
+            sql`
+              ${workflowsTableSQLite.status} = 'active' AND
+              json_extract(${workflowsTableSQLite.trigger}, '$.type') = 'cron'
+            `
+          );
+      } else if (postgresDb) {
+        workflows = await postgresDb
+          .select({
+            id: workflowsTablePostgres.id,
+            name: workflowsTablePostgres.name,
+            userId: workflowsTablePostgres.userId,
+            trigger: workflowsTablePostgres.trigger,
+            status: workflowsTablePostgres.status,
+          })
+          .from(workflowsTablePostgres)
+          .where(
+            sql`
+              ${workflowsTablePostgres.status} = 'active' AND
+              ${workflowsTablePostgres.trigger}->>'type' = 'cron'
+            `
+          );
+      } else {
+        logger.warn('No database connection available - cannot sync workflows');
+        return;
+      }
 
       // Remove workflows that no longer exist or are inactive
       for (const [workflowId] of this.scheduledWorkflows) {
@@ -130,10 +151,13 @@ class WorkflowScheduler {
         );
       }
 
-      logger.info(
-        { scheduled: this.scheduledWorkflows.size },
-        'Workflow sync completed'
-      );
+      // Only log if there are scheduled workflows
+      if (this.scheduledWorkflows.size > 0) {
+        logger.info(
+          { scheduled: this.scheduledWorkflows.size },
+          'Workflow sync completed'
+        );
+      }
     } catch (error) {
       logger.error({ error }, 'Failed to sync workflows');
       throw error;

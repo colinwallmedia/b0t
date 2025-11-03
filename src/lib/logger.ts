@@ -1,6 +1,4 @@
 import pino from 'pino';
-import path from 'path';
-import fs from 'fs';
 
 /**
  * Structured logging with Pino + File Logging
@@ -20,26 +18,40 @@ import fs from 'fs';
 
 const isDevelopment = process.env.NODE_ENV === 'development';
 const enableFileLogs = process.env.ENABLE_FILE_LOGS !== 'false'; // Default: enabled
+const isNodeRuntime = process.env.NEXT_RUNTIME !== 'edge';
 
-// Create logs directory if it doesn't exist (only on server-side)
-const logsDir = path.join(process.cwd(), 'logs');
-if (enableFileLogs && typeof window === 'undefined') {
+// Lazy load Node.js modules only when needed (avoid Edge Runtime issues)
+let logsDir: string | null = null;
+let logFilePath: string | null = null;
+let errorLogFilePath: string | null = null;
+
+// Create logs directory if it doesn't exist (only in Node.js runtime)
+if (enableFileLogs && typeof window === 'undefined' && isNodeRuntime) {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const path = require('path');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require('fs');
+
+    logsDir = path.join(process.cwd(), 'logs');
     if (!fs.existsSync(logsDir)) {
       fs.mkdirSync(logsDir, { recursive: true });
     }
+
+    logFilePath = path.join(logsDir, 'app.log');
+    errorLogFilePath = path.join(logsDir, 'error.log');
   } catch {
     // Ignore errors in edge runtime or during build
   }
 }
 
-// Configure file paths
-const logFilePath = path.join(logsDir, 'app.log');
-const errorLogFilePath = path.join(logsDir, 'error.log');
-
 // Create file write streams (simple append, no rotation in-process)
 const createFileStream = (filePath: string) => {
+  if (!isNodeRuntime) return null;
+
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require('fs');
     return fs.createWriteStream(filePath, { flags: 'a' });
   } catch {
     return null;
@@ -57,8 +69,8 @@ if (isDevelopment) {
   });
 }
 
-// Add file streams if enabled (only on server-side)
-if (enableFileLogs && typeof window === 'undefined') {
+// Add file streams if enabled (only in Node.js runtime)
+if (enableFileLogs && typeof window === 'undefined' && isNodeRuntime && logFilePath && errorLogFilePath) {
   const appStream = createFileStream(logFilePath);
   const errorStream = createFileStream(errorLogFilePath);
 

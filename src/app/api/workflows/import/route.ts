@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { sqliteDb } from '@/lib/db';
-import { workflowsTableSQLite } from '@/lib/schema';
+import { postgresDb } from '@/lib/db';
+import { workflowsTablePostgres } from '@/lib/schema';
 import { importWorkflow } from '@/lib/workflows/import-export';
 import { randomUUID } from 'crypto';
 import { logger } from '@/lib/logger';
@@ -44,28 +44,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!sqliteDb) {
+    if (!postgresDb) {
       throw new Error('Database not initialized');
     }
 
     // Create workflow in database
     const id = randomUUID();
-    const now = new Date();
 
-    await sqliteDb.insert(workflowsTableSQLite).values({
+    await postgresDb.insert(workflowsTablePostgres).values({
       id,
       userId: session.user.id,
+      organizationId: null,
       name: workflow.name,
       description: workflow.description,
       prompt: `Imported workflow: ${workflow.name}`,
-      config: workflow.config,
-      trigger: { type: 'manual', config: {} },
+      config: JSON.stringify(workflow.config),
+      trigger: JSON.stringify({ type: 'manual', config: {} }),
       status: 'draft', // Imported workflows start as draft
-      createdAt: now,
-      lastRun: null,
-      lastRunStatus: null,
-      lastRunError: null,
-      runCount: 0,
     });
 
     logger.info(

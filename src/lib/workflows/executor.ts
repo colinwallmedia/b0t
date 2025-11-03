@@ -1,5 +1,10 @@
 import { useSQLite, sqliteDb, postgresDb } from '@/lib/db';
-import { workflowsTableSQLite, workflowRunsTableSQLite } from '@/lib/schema';
+import {
+  workflowsTableSQLite,
+  workflowRunsTableSQLite,
+  workflowsTablePostgres,
+  workflowRunsTablePostgres
+} from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 import { logger } from '@/lib/logger';
 import { randomUUID } from 'crypto';
@@ -34,25 +39,7 @@ export async function executeWorkflow(
   const startedAt = new Date();
 
   try {
-    // Create workflow run record
-    if (useSQLite) {
-      if (!sqliteDb) throw new Error('SQLite database not initialized');
-      await sqliteDb.insert(workflowRunsTableSQLite).values({
-        id: runId,
-        workflowId,
-        userId,
-        status: 'running',
-        triggerType,
-        triggerData: triggerData ? JSON.stringify(triggerData) : null,
-        startedAt,
-      });
-    } else {
-      if (!postgresDb) throw new Error('PostgreSQL database not initialized');
-      // TODO: Implement PostgreSQL workflow tables
-      throw new Error('PostgreSQL workflow tables not yet implemented');
-    }
-
-    // Get workflow configuration
+    // Get workflow configuration first (need organizationId for PostgreSQL workflow run)
     let workflow;
     if (useSQLite) {
       if (!sqliteDb) throw new Error('SQLite database not initialized');
@@ -68,10 +55,48 @@ export async function executeWorkflow(
       workflow = workflows[0];
     } else {
       if (!postgresDb) throw new Error('PostgreSQL database not initialized');
-      throw new Error('PostgreSQL workflow tables not yet implemented');
+      const workflows = await postgresDb
+        .select()
+        .from(workflowsTablePostgres)
+        .where(eq(workflowsTablePostgres.id, workflowId))
+        .limit(1);
+
+      if (workflows.length === 0) {
+        throw new Error(`Workflow ${workflowId} not found`);
+      }
+      workflow = workflows[0];
     }
 
-    const config = workflow.config as {
+    // Create workflow run record (after getting workflow for organizationId)
+    if (useSQLite) {
+      if (!sqliteDb) throw new Error('SQLite database not initialized');
+      await sqliteDb.insert(workflowRunsTableSQLite).values({
+        id: runId,
+        workflowId,
+        userId,
+        status: 'running',
+        triggerType,
+        triggerData: triggerData ? JSON.stringify(triggerData) : null,
+        startedAt,
+      });
+    } else {
+      if (!postgresDb) throw new Error('PostgreSQL database not initialized');
+      await postgresDb.insert(workflowRunsTablePostgres).values({
+        id: runId,
+        workflowId,
+        userId,
+        organizationId: workflow.organizationId || null,
+        status: 'running',
+        triggerType,
+        triggerData: triggerData ? JSON.stringify(triggerData) : null,
+        startedAt,
+      });
+    }
+
+    // Parse config - for PostgreSQL it's a string, for SQLite it's already an object
+    const config = (typeof workflow.config === 'string'
+      ? JSON.parse(workflow.config)
+      : workflow.config) as {
       steps: Array<{
         id: string;
         module: string;
@@ -141,6 +166,28 @@ export async function executeWorkflow(
               runCount: workflow.runCount + 1,
             })
             .where(eq(workflowsTableSQLite.id, workflowId));
+        } else if (postgresDb) {
+          await postgresDb
+            .update(workflowRunsTablePostgres)
+            .set({
+              status: 'error',
+              completedAt,
+              duration: completedAt.getTime() - startedAt.getTime(),
+              error: error instanceof Error ? error.message : 'Unknown error',
+              errorStep: step.id,
+            })
+            .where(eq(workflowRunsTablePostgres.id, runId));
+
+          // Update workflow last run status
+          await postgresDb
+            .update(workflowsTablePostgres)
+            .set({
+              lastRun: completedAt,
+              lastRunStatus: 'error',
+              lastRunError: error instanceof Error ? error.message : 'Unknown error',
+              runCount: workflow.runCount + 1,
+            })
+            .where(eq(workflowsTablePostgres.id, workflowId));
         }
 
         return {
@@ -174,6 +221,27 @@ export async function executeWorkflow(
           runCount: workflow.runCount + 1,
         })
         .where(eq(workflowsTableSQLite.id, workflowId));
+    } else if (postgresDb) {
+      await postgresDb
+        .update(workflowRunsTablePostgres)
+        .set({
+          status: 'success',
+          completedAt,
+          duration: completedAt.getTime() - startedAt.getTime(),
+          output: lastOutput ? JSON.stringify(lastOutput) : null,
+        })
+        .where(eq(workflowRunsTablePostgres.id, runId));
+
+      // Update workflow last run status
+      await postgresDb
+        .update(workflowsTablePostgres)
+        .set({
+          lastRun: completedAt,
+          lastRunStatus: 'success',
+          lastRunError: null,
+          runCount: workflow.runCount + 1,
+        })
+        .where(eq(workflowsTablePostgres.id, workflowId));
     }
 
     logger.info({ workflowId, runId, duration: completedAt.getTime() - startedAt.getTime() }, 'Workflow execution completed');
@@ -195,6 +263,16 @@ export async function executeWorkflow(
             error: error instanceof Error ? error.message : 'Unknown error',
           })
           .where(eq(workflowRunsTableSQLite.id, runId));
+      } else if (postgresDb) {
+        await postgresDb
+          .update(workflowRunsTablePostgres)
+          .set({
+            status: 'error',
+            completedAt,
+            duration: completedAt.getTime() - startedAt.getTime(),
+            error: error instanceof Error ? error.message : 'Unknown error',
+          })
+          .where(eq(workflowRunsTablePostgres.id, runId));
       }
     } catch (updateError) {
       logger.error({ updateError }, 'Failed to update workflow run status');

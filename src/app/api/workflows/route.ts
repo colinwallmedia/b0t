@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { sqliteDb } from '@/lib/db';
-import { workflowsTableSQLite } from '@/lib/schema';
+import { postgresDb } from '@/lib/db';
+import { workflowsTablePostgres } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 import { logger } from '@/lib/logger';
 
@@ -19,30 +19,32 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!sqliteDb) {
+    if (!postgresDb) {
       throw new Error('Database not initialized');
     }
 
-    const workflows = await sqliteDb
+    const workflows = await postgresDb
       .select({
-        id: workflowsTableSQLite.id,
-        name: workflowsTableSQLite.name,
-        description: workflowsTableSQLite.description,
-        status: workflowsTableSQLite.status,
-        trigger: workflowsTableSQLite.trigger,
-        config: workflowsTableSQLite.config,
-        createdAt: workflowsTableSQLite.createdAt,
-        lastRun: workflowsTableSQLite.lastRun,
-        lastRunStatus: workflowsTableSQLite.lastRunStatus,
-        runCount: workflowsTableSQLite.runCount,
+        id: workflowsTablePostgres.id,
+        name: workflowsTablePostgres.name,
+        description: workflowsTablePostgres.description,
+        status: workflowsTablePostgres.status,
+        trigger: workflowsTablePostgres.trigger,
+        config: workflowsTablePostgres.config,
+        createdAt: workflowsTablePostgres.createdAt,
+        lastRun: workflowsTablePostgres.lastRun,
+        lastRunStatus: workflowsTablePostgres.lastRunStatus,
+        runCount: workflowsTablePostgres.runCount,
       })
-      .from(workflowsTableSQLite)
-      .where(eq(workflowsTableSQLite.userId, session.user.id))
-      .orderBy(workflowsTableSQLite.createdAt);
+      .from(workflowsTablePostgres)
+      .where(eq(workflowsTablePostgres.userId, session.user.id))
+      .orderBy(workflowsTablePostgres.createdAt);
 
     return NextResponse.json({ workflows });
   } catch (error) {
-    logger.error({ error }, 'Failed to list workflows');
+    // Log the full error with stack trace
+    console.error('❌ Failed to list workflows:', error);
+    logger.error({ error: error instanceof Error ? { message: error.message, stack: error.stack } : error }, 'Failed to list workflows');
     return NextResponse.json(
       { error: 'Failed to list workflows' },
       { status: 500 }

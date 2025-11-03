@@ -44,17 +44,9 @@ const getRedisConnection = () => {
       },
     });
 
-    // Add connection event listeners for better debugging
-    redis.on('connect', () => {
-      logger.info('Redis connected successfully');
-    });
-
+    // Add error listener for critical issues only
     redis.on('error', (error) => {
       logger.error({ error }, 'Redis connection error');
-    });
-
-    redis.on('close', () => {
-      logger.warn('Redis connection closed');
     });
 
     return redis;
@@ -124,8 +116,6 @@ export function createQueue(
   });
 
   queues.set(name, queue);
-  logger.info({ queue: name }, 'Created queue');
-
   return queue;
 }
 
@@ -194,8 +184,6 @@ export function createWorker<T = unknown, R = unknown>(
   });
 
   workers.set(queueName, worker);
-  logger.info({ queue: queueName }, 'Created worker');
-
   return worker;
 }
 

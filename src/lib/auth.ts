@@ -1,6 +1,5 @@
 import NextAuth, { type DefaultSession } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
-import { createOrganization, getUserOrganizations } from './organizations';
 
 /**
  * NextAuth.js v5 (Auth.js) Configuration
@@ -8,10 +7,25 @@ import { createOrganization, getUserOrganizations } from './organizations';
  * Multi-tenant authentication with organization context
  * Each user belongs to one or more organizations
  * Personal organization is auto-created on first sign-in
+ *
+ * NOTE: Organizations module is lazy-loaded to avoid Edge Runtime issues
  */
 
-// Import OrganizationRole type
+// Import OrganizationRole type only (types are stripped at runtime)
 import type { OrganizationRole } from './organizations';
+
+// Lazy-load organization functions to avoid bundling database drivers in Edge Runtime
+const getOrganizationFunctions = async () => {
+  // Only load in Node.js runtime (not Edge)
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    return null;
+  }
+  const orgs = await import('./organizations');
+  return {
+    createOrganization: orgs.createOrganization,
+    getUserOrganizations: orgs.getUserOrganizations,
+  };
+};
 
 // Extend NextAuth types to include organization context
 declare module 'next-auth' {
@@ -87,14 +101,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       console.log('🔐 Sign in:', { user: user.email, provider: account?.provider });
 
       // Auto-create personal organization on first sign-in
-      if (user?.id) {
+      // Skip in Edge Runtime (organization functions not available)
+      if (user?.id && process.env.NEXT_RUNTIME !== 'edge') {
         try {
-          const existingOrgs = await getUserOrganizations(user.id);
+          const orgFns = await getOrganizationFunctions();
+          if (!orgFns) {
+            console.log('⚠️  Organization functions not available (Edge Runtime)');
+            return true;
+          }
+
+          const existingOrgs = await orgFns.getUserOrganizations(user.id);
 
           if (existingOrgs.length === 0) {
             // First time sign-in - create personal organization
             const orgName = user.name ? `${user.name}'s Workspace` : 'My Workspace';
-            const org = await createOrganization(orgName, user.id);
+            const org = await orgFns.createOrganization(orgName, user.id);
 
             console.log('✅ Created personal organization:', org.id);
           }
@@ -130,9 +151,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
       // Load organization context if not already present
       // or if session is being updated
-      if (token.id && (!token.organizationId || trigger === 'update')) {
+      // Skip in Edge Runtime
+      if (token.id && (!token.organizationId || trigger === 'update') && process.env.NEXT_RUNTIME !== 'edge') {
         try {
-          const orgs = await getUserOrganizations(token.id as string);
+          const orgFns = await getOrganizationFunctions();
+          if (!orgFns) {
+            console.log('⚠️  Organization functions not available (Edge Runtime)');
+            return token;
+          }
+
+          const orgs = await orgFns.getUserOrganizations(token.id as string);
 
           if (orgs.length > 0) {
             // Use first organization as default
@@ -174,8 +202,20 @@ export async function getServerSession() {
     console.warn('⚠️  Session missing organization context, reloading...');
 
     // Try to load organization context
+    // Skip in Edge Runtime
+    if (process.env.NEXT_RUNTIME === 'edge') {
+      console.warn('⚠️  Cannot load organization context in Edge Runtime');
+      return null;
+    }
+
     try {
-      const orgs = await getUserOrganizations(session.user.id);
+      const orgFns = await getOrganizationFunctions();
+      if (!orgFns) {
+        console.error('❌ Organization functions not available');
+        return null;
+      }
+
+      const orgs = await orgFns.getUserOrganizations(session.user.id);
       if (orgs.length > 0) {
         const org = orgs[0];
         session.user.organizationId = org.id;
