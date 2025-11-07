@@ -97,19 +97,32 @@ if (streams.length === 0) {
   });
 }
 
-// Create logger with multiple streams
-export const logger = pino(
-  {
-    level: process.env.LOG_LEVEL || (isDevelopment ? 'debug' : 'info'),
-    formatters: {
-      level: (label) => {
-        return { level: label };
+// Create logger with multiple streams (or single stream for Edge runtime)
+export const logger = isNodeRuntime && streams.length > 0
+  ? pino(
+      {
+        level: process.env.LOG_LEVEL || (isDevelopment ? 'debug' : 'info'),
+        formatters: {
+          level: (label) => {
+            return { level: label };
+          },
+        },
+        timestamp: pino.stdTimeFunctions.isoTime,
       },
-    },
-    timestamp: pino.stdTimeFunctions.isoTime,
-  },
-  pino.multistream(streams)
-);
+      pino.multistream(streams)
+    )
+  : pino({
+      level: process.env.LOG_LEVEL || (isDevelopment ? 'debug' : 'info'),
+      formatters: {
+        level: (label) => {
+          return { level: label };
+        },
+      },
+      timestamp: pino.stdTimeFunctions.isoTime,
+      browser: {
+        asObject: true,
+      },
+    });
 
 // Helper functions for common logging patterns
 export const logJobStart = (jobName: string) => {

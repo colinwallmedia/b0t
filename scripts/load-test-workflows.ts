@@ -14,7 +14,6 @@
 import { queueWorkflowExecution, getWorkflowQueueStats } from '../src/lib/workflows/workflow-queue';
 import { executeWorkflowConfig } from '../src/lib/workflows/executor';
 import { pool } from '../src/lib/db';
-import { logger } from '../src/lib/logger';
 
 // Parse command line arguments
 const args = process.argv.slice(2);
@@ -101,7 +100,7 @@ class ResourceMonitor {
             `[Monitor] DB: ${dbConnections} connections, ` +
             `Queue: ${stats?.active || 0} active, ${stats?.waiting || 0} waiting`
           );
-        } catch (error) {
+        } catch {
           // Queue might not be initialized
         }
       } else {
@@ -128,7 +127,8 @@ class ResourceMonitor {
 /**
  * Execute a single workflow (direct execution, no queue)
  */
-async function executeWorkflowDirect(workflowId: number): Promise<{ success: boolean; duration: number; error?: string }> {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function executeWorkflowDirect(_workflowId: number): Promise<{ success: boolean; duration: number; error?: string }> {
   const startTime = Date.now();
 
   try {
@@ -234,7 +234,7 @@ async function runLoadTest(): Promise<TestResults> {
     const batchDuration = Date.now() - batchStartTime;
 
     // Process results
-    batchResults.forEach((result, j) => {
+    batchResults.forEach((result) => {
       if (result.status === 'fulfilled') {
         if (result.value.success) {
           results.successful++;

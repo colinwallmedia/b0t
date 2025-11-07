@@ -4,6 +4,7 @@ import { usersTable, invitationsTable, organizationMembersTable } from '@/lib/sc
 import { eq, and } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import { nanoid } from 'nanoid';
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/auth/register
@@ -99,12 +100,20 @@ export async function POST(request: NextRequest) {
       .set({ acceptedAt: new Date() })
       .where(eq(invitationsTable.id, invitation.id));
 
+    logger.info(
+      { userId, email: email.toLowerCase(), organizationId: invitation.organizationId, action: 'user_register_success' },
+      'User registered successfully'
+    );
+
     return NextResponse.json({
       success: true,
       message: 'Account created successfully. You can now sign in.',
     });
   } catch (error) {
-    console.error('Failed to register user:', error);
+    logger.error(
+      { error: error instanceof Error ? error.message : String(error), action: 'user_register_failed' },
+      'Failed to register user'
+    );
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

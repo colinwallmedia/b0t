@@ -2,6 +2,7 @@ import { db } from './db';
 import { organizationsTable, organizationMembersTable, type Organization, type OrganizationMember } from './schema';
 import { eq, and } from 'drizzle-orm';
 import slugify from 'slugify';
+import { logger } from './logger';
 
 // Use Web Crypto API for Edge Runtime compatibility
 const getRandomUUID = () => {
@@ -25,49 +26,84 @@ export async function createOrganization(
 ): Promise<Organization> {
   const id = getRandomUUID();
 
-  // Generate unique slug
-  let slug = slugify(name, { lower: true, strict: true });
+  try {
+    // Generate unique slug
+    let slug = slugify(name, { lower: true, strict: true });
 
-  // Check if slug exists, append number if needed
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const existing = await (db as any)
-    .select()
-    .from(organizationsTable)
-    .where(eq(organizationsTable.slug, slug))
-    .limit(1);
+    // Check if slug exists, append number if needed
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const existing = await (db as any)
+      .select()
+      .from(organizationsTable)
+      .where(eq(organizationsTable.slug, slug))
+      .limit(1);
 
-  if (existing.length > 0) {
-    slug = `${slug}-${Date.now()}`;
+    if (existing.length > 0) {
+      slug = `${slug}-${Date.now()}`;
+      logger.info(
+        {
+          userId: ownerId,
+          organizationId: id,
+          action: 'organization_slug_collision_handled',
+          timestamp: new Date().toISOString(),
+          metadata: { originalSlug: slugify(name, { lower: true, strict: true }), newSlug: slug }
+        },
+        'Organization slug collision detected and resolved'
+      );
+    }
+
+    // Create organization
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (db as any).insert(organizationsTable).values({
+      id,
+      name,
+      slug,
+      ownerId,
+      plan,
+      settings: {},
+    });
+
+    // Add owner as member
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (db as any).insert(organizationMembersTable).values({
+      id: getRandomUUID(),
+      organizationId: id,
+      userId: ownerId,
+      role: 'owner',
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [org] = await (db as any)
+      .select()
+      .from(organizationsTable)
+      .where(eq(organizationsTable.id, id))
+      .limit(1);
+
+    logger.info(
+      {
+        userId: ownerId,
+        organizationId: id,
+        action: 'organization_created',
+        timestamp: new Date().toISOString(),
+        metadata: { name, slug, plan }
+      },
+      'Organization created successfully'
+    );
+
+    return org as Organization;
+  } catch (error) {
+    logger.error(
+      {
+        userId: ownerId,
+        organizationId: id,
+        action: 'organization_create_failed',
+        timestamp: new Date().toISOString(),
+        error: error instanceof Error ? { message: error.message, stack: error.stack, name: error.name } : error
+      },
+      'Failed to create organization'
+    );
+    throw error;
   }
-
-  // Create organization
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (db as any).insert(organizationsTable).values({
-    id,
-    name,
-    slug,
-    ownerId,
-    plan,
-    settings: {},
-  });
-
-  // Add owner as member
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (db as any).insert(organizationMembersTable).values({
-    id: getRandomUUID(),
-    organizationId: id,
-    userId: ownerId,
-    role: 'owner',
-  });
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [org] = await (db as any)
-    .select()
-    .from(organizationsTable)
-    .where(eq(organizationsTable.id, id))
-    .limit(1);
-
-  return org as Organization;
 }
 
 /**
@@ -164,22 +200,49 @@ export async function addOrganizationMember(
 ): Promise<OrganizationMember> {
   const id = getRandomUUID();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (db as any).insert(organizationMembersTable).values({
-    id,
-    organizationId,
-    userId,
-    role,
-  });
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (db as any).insert(organizationMembersTable).values({
+      id,
+      organizationId,
+      userId,
+      role,
+    });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [member] = await (db as any)
-    .select()
-    .from(organizationMembersTable)
-    .where(eq(organizationMembersTable.id, id))
-    .limit(1);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [member] = await (db as any)
+      .select()
+      .from(organizationMembersTable)
+      .where(eq(organizationMembersTable.id, id))
+      .limit(1);
 
-  return member as OrganizationMember;
+    logger.info(
+      {
+        userId,
+        organizationId,
+        memberId: id,
+        action: 'organization_member_added',
+        timestamp: new Date().toISOString(),
+        metadata: { role }
+      },
+      'Member added to organization successfully'
+    );
+
+    return member as OrganizationMember;
+  } catch (error) {
+    logger.error(
+      {
+        userId,
+        organizationId,
+        memberId: id,
+        action: 'organization_member_add_failed',
+        timestamp: new Date().toISOString(),
+        error: error instanceof Error ? { message: error.message, stack: error.stack, name: error.name } : error
+      },
+      'Failed to add member to organization'
+    );
+    throw error;
+  }
 }
 
 /**

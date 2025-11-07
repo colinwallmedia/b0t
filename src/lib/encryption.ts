@@ -1,6 +1,43 @@
 import crypto from 'crypto';
+import { logger } from './logger';
 
-// Get encryption key from environment (fallback to AUTH_SECRET if ENCRYPTION_KEY not set)
+// Validate encryption key on module load (fail fast in production)
+const validateEncryptionKey = (): void => {
+  const key = process.env.ENCRYPTION_KEY;
+  const authSecret = process.env.AUTH_SECRET;
+
+  // Production: ENCRYPTION_KEY is required
+  if (process.env.NODE_ENV === 'production') {
+    if (!key) {
+      throw new Error(
+        'ENCRYPTION_KEY must be set in production. Generate with: openssl rand -base64 32'
+      );
+    }
+    if (key === authSecret) {
+      logger.warn(
+        'ENCRYPTION_KEY and AUTH_SECRET are identical. Use separate keys for security.'
+      );
+    }
+  }
+
+  // Development: Warn if using fallback
+  if (!key && authSecret) {
+    logger.warn(
+      'ENCRYPTION_KEY not set, falling back to AUTH_SECRET. Set ENCRYPTION_KEY for production.'
+    );
+  }
+
+  if (!key && !authSecret) {
+    throw new Error(
+      'Either ENCRYPTION_KEY or AUTH_SECRET must be set. Generate with: openssl rand -base64 32'
+    );
+  }
+};
+
+// Run validation on module load
+validateEncryptionKey();
+
+// Get encryption key from environment (fallback to AUTH_SECRET in development only)
 const getEncryptionKey = (): string => {
   const key = process.env.ENCRYPTION_KEY || process.env.AUTH_SECRET;
   if (!key) {

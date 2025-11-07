@@ -29,7 +29,16 @@ export async function storeCredential(
   input: CredentialInput,
   organizationId?: string
 ): Promise<{ id: string }> {
-  logger.info({ userId, platform: input.platform, type: input.type }, 'Storing credential');
+  logger.info(
+    {
+      userId,
+      platform: input.platform,
+      type: input.type,
+      organizationId,
+      action: 'credential_created'
+    },
+    'Storing credential'
+  );
 
   const id = randomUUID();
   let encryptedValue = '';
@@ -62,7 +71,17 @@ export async function storeCredential(
     metadata: metadata as Record<string, unknown>,
   });
 
-  logger.info({ id, platform: input.platform }, 'Credential stored successfully');
+  logger.info(
+    {
+      id,
+      platform: input.platform,
+      userId,
+      organizationId,
+      action: 'credential_created',
+      timestamp: new Date().toISOString()
+    },
+    'Credential stored successfully'
+  );
 
   return { id };
 }
@@ -102,7 +121,16 @@ export async function getCredential(
 
   const decryptedValue = decrypt(credential.encryptedValue);
 
-  logger.info({ userId, platform, credentialId: credential.id }, 'Credential retrieved');
+  logger.info(
+    {
+      userId,
+      platform,
+      credentialId: credential.id,
+      action: 'credential_accessed',
+      timestamp: new Date().toISOString()
+    },
+    'Credential retrieved'
+  );
 
   return decryptedValue;
 }
@@ -153,7 +181,15 @@ export async function listCredentials(
  * Delete a credential
  */
 export async function deleteCredential(userId: string, credentialId: string): Promise<void> {
-  logger.info({ userId, credentialId }, 'Deleting credential');
+  logger.info(
+    {
+      userId,
+      credentialId,
+      action: 'credential_delete_attempt',
+      timestamp: new Date().toISOString()
+    },
+    'Deleting credential'
+  );
 
   await db
     .delete(userCredentialsTable)
@@ -164,7 +200,15 @@ export async function deleteCredential(userId: string, credentialId: string): Pr
       )
     );
 
-  logger.info({ userId, credentialId }, 'Credential deleted');
+  logger.info(
+    {
+      userId,
+      credentialId,
+      action: 'credential_deleted',
+      timestamp: new Date().toISOString()
+    },
+    'Credential deleted'
+  );
 }
 
 /**
@@ -175,7 +219,15 @@ export async function updateCredential(
   credentialId: string,
   newValue: string
 ): Promise<void> {
-  logger.info({ userId, credentialId }, 'Updating credential');
+  logger.info(
+    {
+      userId,
+      credentialId,
+      action: 'credential_update_attempt',
+      timestamp: new Date().toISOString()
+    },
+    'Updating credential'
+  );
 
   const encryptedValue = encrypt(newValue);
 
@@ -189,7 +241,15 @@ export async function updateCredential(
       )
     );
 
-  logger.info({ userId, credentialId }, 'Credential updated');
+  logger.info(
+    {
+      userId,
+      credentialId,
+      action: 'credential_updated',
+      timestamp: new Date().toISOString()
+    },
+    'Credential updated'
+  );
 }
 
 /**

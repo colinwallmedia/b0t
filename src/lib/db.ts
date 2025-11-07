@@ -1,5 +1,6 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
+import { logger } from './logger';
 
 // PostgreSQL configuration
 const databaseUrl = process.env.DATABASE_URL;
@@ -8,7 +9,14 @@ if (!databaseUrl) {
   throw new Error('DATABASE_URL environment variable is required. Make sure Docker PostgreSQL is running.');
 }
 
-console.log('🗄️  Using PostgreSQL database:', databaseUrl.substring(0, 30) + '...');
+logger.info(
+  {
+    action: 'db_connection_selected',
+    database: 'postgresql',
+    urlPreview: databaseUrl.substring(0, 30) + '...',
+  },
+  'Using PostgreSQL database'
+);
 
 // Configurable connection pool for scaling
 // Development: 20 connections (single instance)
@@ -28,23 +36,48 @@ const pool = new Pool({
 });
 
 // Log pool configuration
-console.log(`📊 Database pool: ${minConnections}-${maxConnections} connections`);
+logger.info(
+  {
+    action: 'db_pool_configured',
+    minConnections,
+    maxConnections,
+    connectionTimeoutMs,
+    idleTimeoutMs,
+  },
+  `Database pool configured: ${minConnections}-${maxConnections} connections`
+);
 
 // Pool error handling
 pool.on('error', (err) => {
-  console.error('❌ Unexpected database pool error:', err);
+  logger.error(
+    {
+      action: 'db_pool_error',
+      error: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    },
+    'Unexpected database pool error'
+  );
 });
 
 // Pool monitoring (optional, useful for debugging)
 if (process.env.DB_POOL_LOGGING === 'true') {
   pool.on('connect', () => {
-    console.log('✅ New database connection established');
+    logger.debug(
+      { action: 'db_pool_connect' },
+      'Database pool client connected'
+    );
   });
   pool.on('acquire', () => {
-    console.log('🔒 Connection acquired from pool');
+    logger.debug(
+      { action: 'db_pool_acquire' },
+      'Connection acquired from pool'
+    );
   });
   pool.on('release', () => {
-    console.log('🔓 Connection released back to pool');
+    logger.debug(
+      { action: 'db_pool_release' },
+      'Connection released back to pool'
+    );
   });
 }
 

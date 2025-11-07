@@ -1,6 +1,7 @@
 import cron, { ScheduledTask } from 'node-cron';
 import { db } from './db';
 import { jobLogsTable } from './schema';
+import { logger } from './logger';
 
 export interface ScheduledJob {
   name: string;
@@ -35,17 +36,17 @@ class Scheduler {
    */
   register(job: ScheduledJob) {
     if (this.jobs.has(job.name)) {
-      console.warn(`⚠️  Job "${job.name}" is already registered. Skipping.`);
+      logger.warn({ jobName: job.name, action: 'job_already_registered' }, `Job "${job.name}" is already registered. Skipping.`);
       return;
     }
 
     if (job.enabled === false) {
-      console.log(`⏸️  Job "${job.name}" is disabled. Skipping registration.`);
+      logger.info({ jobName: job.name, action: 'job_disabled' }, `Job "${job.name}" is disabled. Skipping registration.`);
       return;
     }
 
     if (!cron.validate(job.schedule)) {
-      console.error(`❌ Invalid cron expression for job "${job.name}": ${job.schedule}`);
+      logger.error({ jobName: job.name, schedule: job.schedule, action: 'invalid_cron' }, `Invalid cron expression for job "${job.name}": ${job.schedule}`);
       return;
     }
 
@@ -53,12 +54,12 @@ class Scheduler {
       job.schedule,
       async () => {
         const startTime = Date.now();
-        console.log(`🔄 Running scheduled job: ${job.name}`);
+        logger.info({ jobName: job.name, action: 'scheduled_job_started' }, `Running scheduled job: ${job.name}`);
 
         try {
           await job.task();
           const duration = Date.now() - startTime;
-          console.log(`✅ Completed job: ${job.name} (${duration}ms)`);
+          logger.info({ jobName: job.name, duration, action: 'scheduled_job_completed' }, `Completed job: ${job.name} (${duration}ms)`);
 
           // Log success to database
           try {
@@ -69,15 +70,15 @@ class Scheduler {
               message: `Job completed successfully`,
               duration,
             });
-          } catch (logError) {
-            console.error('Failed to log job success to database:', logError);
+          } catch {
+            logger.error({ jobName: job.name, action: 'job_log_failed' }, 'Failed to log job success to database');
           }
         } catch (error) {
           const duration = Date.now() - startTime;
           const errorMessage = error instanceof Error ? error.message : String(error);
           const errorStack = error instanceof Error ? error.stack : undefined;
 
-          console.error(`❌ Error in job "${job.name}":`, error);
+          logger.error({ jobName: job.name, error: errorMessage, action: 'scheduled_job_failed' }, `Error in job "${job.name}"`);
 
           // Log error to database
           try {
@@ -89,8 +90,8 @@ class Scheduler {
               details: errorStack ? JSON.stringify({ stack: errorStack }) : undefined,
               duration,
             });
-          } catch (logError) {
-            console.error('Failed to log job error to database:', logError);
+          } catch {
+            logger.error({ jobName: job.name, action: 'job_log_failed' }, 'Failed to log job error to database');
           }
         }
       }
@@ -100,7 +101,7 @@ class Scheduler {
     scheduledTask.stop();
 
     this.jobs.set(job.name, scheduledTask);
-    console.log(`📅 Registered job: ${job.name} (${job.schedule})`);
+    logger.info({ jobName: job.name, schedule: job.schedule, action: 'job_registered' }, `Registered job: ${job.name} (${job.schedule})`);
   }
 
   /**
@@ -108,34 +109,34 @@ class Scheduler {
    */
   start() {
     if (this.isInitialized) {
-      console.warn('⚠️  Scheduler is already running.');
+      logger.warn({ action: 'scheduler_already_running' }, 'Scheduler is already running.');
       return;
     }
 
-    console.log(`🚀 Starting scheduler with ${this.jobs.size} job(s)...`);
+    logger.info({ jobCount: this.jobs.size, action: 'scheduler_starting' }, `Starting scheduler with ${this.jobs.size} job(s)...`);
 
     this.jobs.forEach((task, name) => {
       task.start();
-      console.log(`▶️  Started job: ${name}`);
+      logger.info({ jobName: name, action: 'job_started' }, `Started job: ${name}`);
     });
 
     this.isInitialized = true;
-    console.log('✅ Scheduler started successfully');
+    logger.info({ action: 'scheduler_started' }, 'Scheduler started successfully');
   }
 
   /**
    * Stop all registered jobs
    */
   stop() {
-    console.log('🛑 Stopping scheduler...');
+    logger.info({ action: 'scheduler_stopping' }, 'Stopping scheduler...');
 
     this.jobs.forEach((task, name) => {
       task.stop();
-      console.log(`⏹️  Stopped job: ${name}`);
+      logger.info({ jobName: name, action: 'job_stopped' }, `Stopped job: ${name}`);
     });
 
     this.isInitialized = false;
-    console.log('✅ Scheduler stopped');
+    logger.info({ action: 'scheduler_stopped' }, 'Scheduler stopped');
   }
 
   /**
@@ -144,13 +145,13 @@ class Scheduler {
   unregister(jobName: string) {
     const task = this.jobs.get(jobName);
     if (!task) {
-      console.warn(`⚠️  Job "${jobName}" not found.`);
+      logger.warn({ jobName, action: 'job_not_found' }, `Job "${jobName}" not found.`);
       return;
     }
 
     task.stop();
     this.jobs.delete(jobName);
-    console.log(`🗑️  Unregistered job: ${jobName}`);
+    logger.info({ jobName, action: 'job_unregistered' }, `Unregistered job: ${jobName}`);
   }
 
   /**
@@ -159,12 +160,12 @@ class Scheduler {
   startJob(jobName: string) {
     const task = this.jobs.get(jobName);
     if (!task) {
-      console.warn(`⚠️  Job "${jobName}" not found.`);
+      logger.warn({ jobName, action: 'job_not_found' }, `Job "${jobName}" not found.`);
       return false;
     }
 
     task.start();
-    console.log(`▶️  Started job: ${jobName} (will run on schedule)`);
+    logger.info({ jobName, action: 'job_started' }, `Started job: ${jobName} (will run on schedule)`);
     return true;
   }
 
@@ -174,12 +175,12 @@ class Scheduler {
   stopJob(jobName: string) {
     const task = this.jobs.get(jobName);
     if (!task) {
-      console.warn(`⚠️  Job "${jobName}" not found.`);
+      logger.warn({ jobName, action: 'job_not_found' }, `Job "${jobName}" not found.`);
       return false;
     }
 
     task.stop();
-    console.log(`⏹️  Stopped job: ${jobName}`);
+    logger.info({ jobName, action: 'job_stopped' }, `Stopped job: ${jobName}`);
     return true;
   }
 
@@ -199,13 +200,13 @@ class Scheduler {
     // Start the job if enabled (always start in dynamic registration, even if scheduler not globally initialized)
     // This allows API routes to dynamically start jobs without needing the global scheduler state
     if (job.enabled !== false) {
-      console.log(`🚀 Starting job immediately: ${job.name}`);
+      logger.info({ jobName: job.name, action: 'job_starting_immediately' }, `Starting job immediately: ${job.name}`);
       this.startJob(job.name);
 
       // Mark scheduler as initialized so future dynamic registrations work
       if (!this.isInitialized) {
         this.isInitialized = true;
-        console.log(`✅ Scheduler initialized via dynamic job registration`);
+        logger.info({ action: 'scheduler_initialized_dynamic' }, 'Scheduler initialized via dynamic job registration');
       }
     }
   }

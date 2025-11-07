@@ -52,6 +52,7 @@ async function seedAdmin() {
     console.log('💡 Admin workflows have organizationId = NULL (not tied to clients)');
     console.log('\n💡 Login at: http://localhost:3000/auth/signin');
 
+    process.exit(0);
   } catch (error) {
     console.error('❌ Failed to seed admin user:', error);
     process.exit(1);

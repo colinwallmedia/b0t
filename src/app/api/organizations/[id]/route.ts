@@ -10,6 +10,7 @@ import { db } from '@/lib/db';
 import { organizationsTable } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
+import { logger } from '@/lib/logger';
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -48,6 +49,11 @@ export async function GET(
     // Get user's role in this organization
     const role = await getUserRoleInOrganization(session.user.id, id);
 
+    logger.info(
+      { userId: session.user.id, organizationId: id, role, action: 'organization_fetch_success' },
+      'Organization fetched successfully'
+    );
+
     return NextResponse.json({
       success: true,
       organization: {
@@ -56,7 +62,11 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error('Failed to fetch organization:', error);
+    const { id: orgId } = await context.params;
+    logger.error(
+      { error: error instanceof Error ? error.message : String(error), organizationId: orgId, action: 'organization_fetch_failed' },
+      'Failed to fetch organization'
+    );
 
     if (error instanceof Error && error.message.startsWith('Unauthorized')) {
       return NextResponse.json(
@@ -121,12 +131,21 @@ export async function PATCH(
 
     const updatedOrg = await getOrganizationById(id);
 
+    logger.info(
+      { userId: session.user.id, organizationId: id, action: 'organization_update_success' },
+      'Organization updated successfully'
+    );
+
     return NextResponse.json({
       success: true,
       organization: updatedOrg,
     });
   } catch (error) {
-    console.error('Failed to update organization:', error);
+    const { id: orgId } = await context.params;
+    logger.error(
+      { error: error instanceof Error ? error.message : String(error), organizationId: orgId, action: 'organization_update_failed' },
+      'Failed to update organization'
+    );
 
     if (error instanceof Error && error.message.startsWith('Unauthorized')) {
       return NextResponse.json(
@@ -172,12 +191,21 @@ export async function DELETE(
 
     await deleteOrganization(id, session.user.id);
 
+    logger.info(
+      { userId: session.user.id, organizationId: id, action: 'organization_delete_success' },
+      'Organization deleted successfully'
+    );
+
     return NextResponse.json({
       success: true,
       message: 'Organization deleted successfully',
     });
   } catch (error) {
-    console.error('Failed to delete organization:', error);
+    const { id: orgId } = await context.params;
+    logger.error(
+      { error: error instanceof Error ? error.message : String(error), organizationId: orgId, action: 'organization_delete_failed' },
+      'Failed to delete organization'
+    );
 
     if (error instanceof Error && error.message.startsWith('Unauthorized')) {
       return NextResponse.json(

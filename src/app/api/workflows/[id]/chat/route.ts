@@ -154,9 +154,14 @@ Never use ASCII art tables with + and - characters. Always use the | and - markd
     return result.toUIMessageStreamResponse();
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorStack = error instanceof Error ? error.stack : undefined;
-    logger.error({ workflowId, error: errorMessage, stack: errorStack }, 'Chat error');
-    console.error('Chat API error:', error);
+    logger.error(
+      {
+        workflowId,
+        error: errorMessage,
+        action: 'workflow_chat_failed'
+      },
+      'Chat API error'
+    );
     return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }

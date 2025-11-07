@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 import { db } from '@/lib/db';
 import { workflowRunsTable } from '@/lib/schema';
 import { eq, desc } from 'drizzle-orm';
@@ -55,7 +56,14 @@ export async function GET(
 
     return NextResponse.json({ runs: parsedRuns });
   } catch (error) {
-    console.error('Failed to fetch workflow runs:', error);
+    logger.error(
+      {
+        error: error instanceof Error ? error.message : String(error),
+        workflowId: id,
+        action: 'workflow_runs_fetch_failed'
+      },
+      'Failed to fetch workflow runs'
+    );
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Unknown error',

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 import { db } from '@/lib/db';
 import { accountsTable } from '@/lib/schema';
 import { eq, and } from 'drizzle-orm';
@@ -36,7 +37,15 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error disconnecting account:', error);
+    const { id: accountId } = await params;
+    logger.error(
+      {
+        error: error instanceof Error ? error.message : String(error),
+        accountId,
+        action: 'account_disconnect_failed'
+      },
+      'Error disconnecting account'
+    );
     return NextResponse.json(
       { error: 'Failed to disconnect account' },
       { status: 500 }

@@ -6,6 +6,7 @@ import {
   addOrganizationMember,
   type OrganizationRole,
 } from '@/lib/organizations';
+import { logger } from '@/lib/logger';
 import { z } from 'zod';
 
 type RouteContext = {
@@ -40,7 +41,15 @@ export async function GET(
       members,
     });
   } catch (error) {
-    console.error('Failed to fetch organization members:', error);
+    const { id } = await context.params;
+    logger.error(
+      {
+        error: error instanceof Error ? error.message : String(error),
+        organizationId: id,
+        action: 'organization_members_fetch_failed'
+      },
+      'Failed to fetch organization members'
+    );
 
     if (error instanceof Error && error.message.startsWith('Unauthorized')) {
       return NextResponse.json(
@@ -105,7 +114,15 @@ export async function POST(
       member,
     }, { status: 201 });
   } catch (error) {
-    console.error('Failed to add organization member:', error);
+    const { id } = await context.params;
+    logger.error(
+      {
+        error: error instanceof Error ? error.message : String(error),
+        organizationId: id,
+        action: 'organization_member_add_failed'
+      },
+      'Failed to add organization member'
+    );
 
     if (error instanceof Error && error.message.startsWith('Unauthorized')) {
       return NextResponse.json(

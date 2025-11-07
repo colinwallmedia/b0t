@@ -45,7 +45,7 @@ echo "   - Run 'docker compose --profile debug up -d' to start pgAdmin & Redis C
 echo "   - Run 'npm run db:studio' to open Drizzle Studio"
 echo ""
 echo "🌱 Seeding admin user..."
-npm run db:seed
+npm run db:seed || true
 
 echo ""
 echo "🔧 Starting Next.js development server..."

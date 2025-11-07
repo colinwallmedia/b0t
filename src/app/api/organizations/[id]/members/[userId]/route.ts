@@ -6,6 +6,7 @@ import {
   updateOrganizationMemberRole,
   type OrganizationRole,
 } from '@/lib/organizations';
+import { logger } from '@/lib/logger';
 import { z } from 'zod';
 
 type RouteContext = {
@@ -65,7 +66,16 @@ export async function DELETE(
       message: 'Member removed successfully',
     });
   } catch (error) {
-    console.error('Failed to remove organization member:', error);
+    const { id, userId } = await context.params;
+    logger.error(
+      {
+        error: error instanceof Error ? error.message : String(error),
+        organizationId: id,
+        userId,
+        action: 'organization_member_remove_failed'
+      },
+      'Failed to remove organization member'
+    );
 
     if (error instanceof Error && error.message.startsWith('Unauthorized')) {
       return NextResponse.json(
@@ -133,7 +143,16 @@ export async function PATCH(
       message: 'Member role updated successfully',
     });
   } catch (error) {
-    console.error('Failed to update member role:', error);
+    const { id, userId } = await context.params;
+    logger.error(
+      {
+        error: error instanceof Error ? error.message : String(error),
+        organizationId: id,
+        userId,
+        action: 'organization_member_role_update_failed'
+      },
+      'Failed to update member role'
+    );
 
     if (error instanceof Error && error.message.startsWith('Unauthorized')) {
       return NextResponse.json(

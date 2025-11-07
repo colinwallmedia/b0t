@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 import { getWorkflowQueueStats, isWorkflowQueueAvailable } from '@/lib/workflows/workflow-queue';
 import { workflowScheduler } from '@/lib/workflows/workflow-scheduler';
 
@@ -40,7 +41,13 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error('Failed to get queue stats:', error);
+    logger.error(
+      {
+        error: error instanceof Error ? error.message : String(error),
+        action: 'workflow_queue_stats_fetch_failed'
+      },
+      'Failed to get queue stats'
+    );
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Unknown error',

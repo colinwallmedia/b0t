@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getOrganizationMembers, getUserRoleInOrganization } from '@/lib/organizations';
+import { logger } from '@/lib/logger';
 import { db } from '@/lib/db';
 import { accountsTable, invitationsTable } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
@@ -55,7 +56,15 @@ export async function GET(
 
     return NextResponse.json({ members: membersWithDetails });
   } catch (error) {
-    console.error('Failed to fetch members:', error);
+    const { id } = await params;
+    logger.error(
+      {
+        error: error instanceof Error ? error.message : String(error),
+        organizationId: id,
+        action: 'client_members_fetch_failed'
+      },
+      'Failed to fetch client members'
+    );
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -117,8 +126,6 @@ export async function POST(
     const inviteUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/auth/register?token=${token}&email=${encodeURIComponent(email)}`;
 
     // TODO: Send email with invitation link
-    // For now, return the invitation URL
-    console.log('📧 Invitation URL:', inviteUrl);
 
     return NextResponse.json({
       success: true,
@@ -126,7 +133,15 @@ export async function POST(
       inviteUrl, // Include URL in response for development
     });
   } catch (error) {
-    console.error('Failed to invite member:', error);
+    const { id } = await params;
+    logger.error(
+      {
+        error: error instanceof Error ? error.message : String(error),
+        organizationId: id,
+        action: 'client_member_invite_failed'
+      },
+      'Failed to invite client member'
+    );
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

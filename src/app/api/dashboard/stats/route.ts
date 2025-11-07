@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 import { db } from '@/lib/db';
 import { workflowsTable, workflowRunsTable } from '@/lib/schema';
 import { eq, count, and, isNull } from 'drizzle-orm';
@@ -74,7 +75,13 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Error fetching dashboard stats:', error);
+    logger.error(
+      {
+        error: error instanceof Error ? error.message : String(error),
+        action: 'dashboard_stats_fetch_failed'
+      },
+      'Error fetching dashboard stats'
+    );
     return NextResponse.json({ error: 'Failed to fetch stats' }, { status: 500 });
   }
 }

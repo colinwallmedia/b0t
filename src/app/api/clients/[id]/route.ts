@@ -4,6 +4,7 @@ import { updateOrganization, deleteOrganization } from '@/lib/organizations';
 import { db } from '@/lib/db';
 import { workflowsTable } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
+import { logger } from '@/lib/logger';
 
 /**
  * PATCH /api/clients/[id]
@@ -55,9 +56,18 @@ export async function PATCH(
         .where(eq(workflowsTable.organizationId, id));
     }
 
+    logger.info(
+      { userId: session.user.id, clientId: id, action: 'client_update_success' },
+      'Client updated successfully'
+    );
+
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Failed to update client:', error);
+    const { id: clientId } = await params;
+    logger.error(
+      { error: error instanceof Error ? error.message : String(error), clientId, action: 'client_update_failed' },
+      'Failed to update client'
+    );
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -82,9 +92,18 @@ export async function DELETE(
     // Delete the organization
     await deleteOrganization(id, session.user.id);
 
+    logger.info(
+      { userId: session.user.id, clientId: id, action: 'client_delete_success' },
+      'Client deleted successfully'
+    );
+
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Failed to delete client:', error);
+    const { id: clientId } = await params;
+    logger.error(
+      { error: error instanceof Error ? error.message : String(error), clientId, action: 'client_delete_failed' },
+      'Failed to delete client'
+    );
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

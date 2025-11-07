@@ -81,7 +81,7 @@ export async function initializeWorkflowQueue(options?: {
     });
 
     // Create worker to process workflows
-    createWorker<WorkflowJobData>(
+    const worker = createWorker<WorkflowJobData>(
       WORKFLOW_QUEUE_NAME,
       async (job) => {
         const { workflowId, userId, triggerType, triggerData } = job.data;
@@ -92,21 +92,53 @@ export async function initializeWorkflowQueue(options?: {
             workflowId,
             userId,
             triggerType,
-            attempt: job.attemptsMade + 1
+            attempt: job.attemptsMade + 1,
+            action: 'workflow_execution_started',
+            timestamp: new Date().toISOString()
           },
           'Executing workflow from queue'
         );
 
-        // Execute the workflow
-        const result = await executeWorkflow(workflowId, userId, triggerType, triggerData);
+        try {
+          // Execute the workflow
+          const result = await executeWorkflow(workflowId, userId, triggerType, triggerData);
 
-        if (!result.success) {
-          throw new Error(
-            `Workflow execution failed: ${result.error} ${result.errorStep ? `(step: ${result.errorStep})` : ''}`
+          if (!result.success) {
+            throw new Error(
+              `Workflow execution failed: ${result.error} ${result.errorStep ? `(step: ${result.errorStep})` : ''}`
+            );
+          }
+
+          logger.info(
+            {
+              jobId: job.id,
+              workflowId,
+              userId,
+              action: 'workflow_execution_completed',
+              timestamp: new Date().toISOString(),
+              metadata: { triggerType, duration: Date.now() - job.timestamp }
+            },
+            'Workflow executed successfully from queue'
           );
-        }
 
-        return result;
+          return result;
+        } catch (error) {
+          logger.error(
+            {
+              jobId: job.id,
+              workflowId,
+              userId,
+              action: 'workflow_execution_failed',
+              timestamp: new Date().toISOString(),
+              attempt: job.attemptsMade + 1,
+              maxAttempts: 3,
+              error: error instanceof Error ? { message: error.message, stack: error.stack, name: error.name } : error,
+              metadata: { triggerType }
+            },
+            `Workflow execution failed (attempt ${job.attemptsMade + 1}/3)`
+          );
+          throw error;
+        }
       },
       {
         concurrency,  // Run N workflows concurrently
@@ -116,6 +148,24 @@ export async function initializeWorkflowQueue(options?: {
         },
       }
     );
+
+    // Log retry attempts
+    worker.on('failed', (job) => {
+      if (job && job.attemptsMade < 3) {
+        logger.info(
+          {
+            jobId: job.id,
+            workflowId: job.data.workflowId,
+            userId: job.data.userId,
+            action: 'workflow_retry_scheduled',
+            timestamp: new Date().toISOString(),
+            attempt: job.attemptsMade + 1,
+            nextRetryIn: `${Math.pow(2, job.attemptsMade) * 10}s`
+          },
+          `Workflow will retry (attempt ${job.attemptsMade + 1}/3)`
+        );
+      }
+    });
 
     // Worker starts automatically when created
     return true;
@@ -151,50 +201,78 @@ export async function queueWorkflowExecution(
     delay?: number;     // Delay execution by N milliseconds
   }
 ): Promise<{ jobId: string; queued: boolean }> {
-  // If Redis not configured, fall back to direct execution
-  if (!process.env.REDIS_URL) {
-    logger.info({ workflowId, userId }, 'No Redis - executing workflow directly (not queued)');
+  try {
+    // If Redis not configured, fall back to direct execution
+    if (!process.env.REDIS_URL) {
+      logger.info(
+        {
+          workflowId,
+          userId,
+          action: 'workflow_direct_execution',
+          timestamp: new Date().toISOString(),
+          metadata: { triggerType, reason: 'redis_not_configured' }
+        },
+        'No Redis - executing workflow directly (not queued)'
+      );
 
-    // Execute immediately without queue
-    await executeWorkflow(workflowId, userId, triggerType, triggerData);
+      // Execute immediately without queue
+      await executeWorkflow(workflowId, userId, triggerType, triggerData);
 
-    return { jobId: 'direct-execution', queued: false };
-  }
-
-  const queue = queues.get(WORKFLOW_QUEUE_NAME);
-  if (!queue) {
-    throw new Error('Workflow queue not initialized. Call initializeWorkflowQueue() first.');
-  }
-
-  // Add workflow to queue
-  const job = await addJob<WorkflowJobData>(
-    WORKFLOW_QUEUE_NAME,
-    `workflow-${workflowId}`,
-    {
-      workflowId,
-      userId,
-      triggerType,
-      triggerData,
-    },
-    {
-      priority: options?.priority || 5,
-      delay: options?.delay,
+      return { jobId: 'direct-execution', queued: false };
     }
-  );
 
-  logger.info(
-    {
-      jobId: job.id,
-      workflowId,
-      userId,
-      triggerType,
-      priority: options?.priority,
-      delay: options?.delay
-    },
-    'Workflow queued for execution'
-  );
+    const queue = queues.get(WORKFLOW_QUEUE_NAME);
+    if (!queue) {
+      throw new Error('Workflow queue not initialized. Call initializeWorkflowQueue() first.');
+    }
 
-  return { jobId: job.id || 'unknown', queued: true };
+    // Add workflow to queue
+    const job = await addJob<WorkflowJobData>(
+      WORKFLOW_QUEUE_NAME,
+      `workflow-${workflowId}`,
+      {
+        workflowId,
+        userId,
+        triggerType,
+        triggerData,
+      },
+      {
+        priority: options?.priority || 5,
+        delay: options?.delay,
+      }
+    );
+
+    logger.info(
+      {
+        jobId: job.id,
+        workflowId,
+        userId,
+        action: 'workflow_queued',
+        timestamp: new Date().toISOString(),
+        metadata: {
+          triggerType,
+          priority: options?.priority || 5,
+          delay: options?.delay || 0
+        }
+      },
+      'Workflow queued for execution successfully'
+    );
+
+    return { jobId: job.id || 'unknown', queued: true };
+  } catch (error) {
+    logger.error(
+      {
+        workflowId,
+        userId,
+        action: 'workflow_queue_failed',
+        timestamp: new Date().toISOString(),
+        error: error instanceof Error ? { message: error.message, stack: error.stack, name: error.name } : error,
+        metadata: { triggerType }
+      },
+      'Failed to queue workflow for execution'
+    );
+    throw error;
+  }
 }
 
 /**

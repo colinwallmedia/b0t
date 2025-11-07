@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 import { db } from '@/lib/db';
 import {
   workflowsTable, accountsTable, userCredentialsTable
@@ -50,7 +51,14 @@ export async function GET(
       try {
         config = JSON.parse(workflow.config);
       } catch (error) {
-        console.error('Failed to parse workflow config:', error);
+        logger.error(
+          {
+            error: error instanceof Error ? error.message : String(error),
+            workflowId,
+            action: 'workflow_config_parse_failed'
+          },
+          'Failed to parse workflow config'
+        );
         return NextResponse.json(
           { error: 'Invalid workflow configuration' },
           { status: 500 }
@@ -62,9 +70,6 @@ export async function GET(
 
     // Analyze required credentials (pass trigger to detect chat workflows)
     const requiredCredentials = analyzeWorkflowCredentials(config, workflow.trigger);
-    console.log('Workflow config:', JSON.stringify(config, null, 2));
-    console.log('Workflow trigger:', workflow.trigger);
-    console.log('Required credentials detected:', requiredCredentials);
 
     // Get OAuth accounts (can have multiple per platform)
     const oauthAccounts: Record<string, Array<{ id: string; accountName: string; isExpired: boolean }>> = {};
@@ -90,7 +95,14 @@ export async function GET(
       }
     } catch (error) {
       // Accounts table might not exist - this is fine, we'll just use API keys
-      console.log('OAuth accounts not available (table may not exist):', error instanceof Error ? error.message : 'Unknown error');
+      logger.debug(
+        {
+          error: error instanceof Error ? error.message : String(error),
+          workflowId,
+          action: 'oauth_accounts_fetch_skipped'
+        },
+        'OAuth accounts not available (table may not exist)'
+      );
     }
 
     // Get API keys (can have multiple per platform)
@@ -176,7 +188,15 @@ export async function GET(
 
     return NextResponse.json({ credentials });
   } catch (error) {
-    console.error('Error fetching workflow credentials:', error);
+    const { id: workflowId } = await params;
+    logger.error(
+      {
+        error: error instanceof Error ? error.message : String(error),
+        workflowId,
+        action: 'workflow_credentials_fetch_failed'
+      },
+      'Error fetching workflow credentials'
+    );
     // Return empty credentials array instead of error to avoid breaking the UI
     return NextResponse.json({ credentials: [] });
   }

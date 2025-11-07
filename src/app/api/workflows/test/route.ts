@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 import { runAllTests } from '@/lib/workflows/test-all-features';
 
 export const dynamic = 'force-dynamic';
@@ -24,7 +25,13 @@ export async function POST() {
       },
     });
   } catch (error) {
-    console.error('Test suite error:', error);
+    logger.error(
+      {
+        error: error instanceof Error ? error.message : String(error),
+        action: 'workflow_test_suite_failed'
+      },
+      'Test suite error'
+    );
     return NextResponse.json(
       {
         success: false,

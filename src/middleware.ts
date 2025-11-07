@@ -12,6 +12,27 @@ export default auth((req) => {
   const { pathname } = req.nextUrl;
   const isAuthenticated = !!req.auth;
 
+  // Security headers for production
+  const response = NextResponse.next();
+
+  // Only enforce HTTPS in production
+  if (process.env.NODE_ENV === 'production') {
+    // Strict-Transport-Security: Force HTTPS for 1 year
+    response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+
+    // X-Frame-Options: Prevent clickjacking
+    response.headers.set('X-Frame-Options', 'DENY');
+
+    // X-Content-Type-Options: Prevent MIME sniffing
+    response.headers.set('X-Content-Type-Options', 'nosniff');
+
+    // Referrer-Policy: Control referrer information
+    response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+    // Permissions-Policy: Restrict browser features
+    response.headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  }
+
   // Define public routes (no authentication required)
   // Note: Root path "/" is handled by page.tsx which checks auth and redirects appropriately
   const publicRoutes = [
@@ -34,11 +55,22 @@ export default auth((req) => {
   if (!isPublicRoute && !isRootPath && !isAuthenticated) {
     const signInUrl = new URL('/auth/signin', req.url);
     signInUrl.searchParams.set('callbackUrl', pathname);
-    return NextResponse.redirect(signInUrl);
+    const redirectResponse = NextResponse.redirect(signInUrl);
+
+    // Apply security headers to redirect response too
+    if (process.env.NODE_ENV === 'production') {
+      redirectResponse.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+      redirectResponse.headers.set('X-Frame-Options', 'DENY');
+      redirectResponse.headers.set('X-Content-Type-Options', 'nosniff');
+      redirectResponse.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+      redirectResponse.headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+    }
+
+    return redirectResponse;
   }
 
-  // Allow the request to continue
-  return NextResponse.next();
+  // Return response with security headers
+  return response;
 });
 
 /**

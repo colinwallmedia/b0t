@@ -238,7 +238,6 @@ function printResults(results: StressTestResult[]) {
   // Recommendations
   console.log('\nRecommendations:');
   const maxConcurrent = results[results.length - 1].concurrent;
-  const maxSuccessful = Math.max(...results.map((r) => r.concurrent * (r.successful / r.total)));
 
   if (bottleneck && bottleneck.dbUtilization > 95) {
     console.log(`   📈 Increase DB_POOL_MAX beyond ${process.env.DB_POOL_MAX || '20'} for higher concurrency`);

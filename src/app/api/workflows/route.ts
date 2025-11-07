@@ -56,9 +56,13 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ workflows });
   } catch (error) {
-    // Log the full error with stack trace
-    console.error('❌ Failed to list workflows:', error);
-    logger.error({ error: error instanceof Error ? { message: error.message, stack: error.stack } : error }, 'Failed to list workflows');
+    logger.error(
+      {
+        error: error instanceof Error ? error.message : String(error),
+        action: 'workflows_list_failed'
+      },
+      'Failed to list workflows'
+    );
     return NextResponse.json(
       { error: 'Failed to list workflows' },
       { status: 500 }

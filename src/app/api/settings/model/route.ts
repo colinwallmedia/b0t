@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 import { db } from '@/lib/db';
 import { appSettingsTable } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
@@ -28,7 +29,13 @@ export async function GET() {
 
     return NextResponse.json({ model });
   } catch (error) {
-    console.error('Error fetching model setting:', error);
+    logger.error(
+      {
+        error: error instanceof Error ? error.message : String(error),
+        action: 'model_setting_fetch_failed'
+      },
+      'Error fetching model setting'
+    );
     return NextResponse.json(
       { error: 'Failed to fetch model setting' },
       { status: 500 }
@@ -99,7 +106,13 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, model });
   } catch (error) {
-    console.error('Error saving model setting:', error);
+    logger.error(
+      {
+        error: error instanceof Error ? error.message : String(error),
+        action: 'model_setting_save_failed'
+      },
+      'Error saving model setting'
+    );
     return NextResponse.json(
       { error: 'Failed to save model setting' },
       { status: 500 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 import { queueWorkflowExecution, isWorkflowQueueAvailable } from '@/lib/workflows/workflow-queue';
 import { executeWorkflow } from '@/lib/workflows/executor';
 
@@ -76,7 +77,14 @@ export async function POST(
       queued: false,
     });
   } catch (error) {
-    console.error('Failed to execute workflow:', error);
+    logger.error(
+      {
+        error: error instanceof Error ? error.message : String(error),
+        workflowId: id,
+        action: 'workflow_execution_failed'
+      },
+      'Failed to execute workflow'
+    );
     return NextResponse.json(
       {
         success: false,

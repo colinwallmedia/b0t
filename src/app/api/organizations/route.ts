@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { getUserOrganizations, createOrganization } from '@/lib/organizations';
 import { z } from 'zod';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/organizations
@@ -13,12 +14,20 @@ export async function GET() {
 
     const organizations = await getUserOrganizations(session.user.id);
 
+    logger.info(
+      { userId: session.user.id, organizationCount: organizations.length, action: 'organizations_fetch_success' },
+      'Organizations fetched successfully'
+    );
+
     return NextResponse.json({
       success: true,
       organizations,
     });
   } catch (error) {
-    console.error('Failed to fetch organizations:', error);
+    logger.error(
+      { error: error instanceof Error ? error.message : String(error), action: 'organizations_fetch_failed' },
+      'Failed to fetch organizations'
+    );
 
     if (error instanceof Error && error.message.startsWith('Unauthorized')) {
       return NextResponse.json(
@@ -52,12 +61,20 @@ export async function POST(request: NextRequest) {
 
     const organization = await createOrganization(name, session.user.id, plan);
 
+    logger.info(
+      { userId: session.user.id, organizationId: organization.id, organizationName: name, plan: plan || 'free', action: 'organization_create_success' },
+      'Organization created successfully'
+    );
+
     return NextResponse.json({
       success: true,
       organization,
     }, { status: 201 });
   } catch (error) {
-    console.error('Failed to create organization:', error);
+    logger.error(
+      { error: error instanceof Error ? error.message : String(error), action: 'organization_create_failed' },
+      'Failed to create organization'
+    );
 
     if (error instanceof Error && error.message.startsWith('Unauthorized')) {
       return NextResponse.json(

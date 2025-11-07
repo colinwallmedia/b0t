@@ -1,6 +1,7 @@
 import NextAuth, { type DefaultSession } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
+import { logger } from './logger';
 
 /**
  * NextAuth.js v5 (Auth.js) Configuration
@@ -71,8 +72,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
+          logger.warn(
+            {
+              email: credentials?.email,
+              action: 'user_signin_failed',
+              timestamp: new Date().toISOString(),
+              reason: 'missing_credentials',
+              provider: 'credentials',
+            },
+            'Sign-in attempt failed: missing email or password'
+          );
           return null;
         }
+
+        const email = credentials.email as string;
 
         // First check database users
         if (process.env.NEXT_RUNTIME !== 'edge') {
@@ -85,7 +98,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             const [user] = await (db as any)
               .select()
               .from(usersTable)
-              .where(eq(usersTable.email, credentials.email as string))
+              .where(eq(usersTable.email, email))
               .limit(1);
 
             if (user) {
@@ -96,15 +109,47 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               );
 
               if (passwordMatch) {
+                logger.info(
+                  {
+                    userId: user.id,
+                    email: user.email,
+                    action: 'user_signin_success',
+                    timestamp: new Date().toISOString(),
+                    metadata: { provider: 'credentials', userSource: 'database' },
+                  },
+                  'User signed in successfully'
+                );
                 return {
                   id: user.id,
                   email: user.email,
                   name: user.name || user.email,
                 };
+              } else {
+                logger.warn(
+                  {
+                    email: user.email,
+                    userId: user.id,
+                    action: 'user_signin_failed',
+                    timestamp: new Date().toISOString(),
+                    reason: 'invalid_password',
+                    provider: 'credentials',
+                  },
+                  'Sign-in attempt failed: invalid password'
+                );
               }
             }
           } catch (error) {
-            console.error('Database user lookup failed:', error);
+            logger.error(
+              {
+                email,
+                action: 'user_signin_failed',
+                timestamp: new Date().toISOString(),
+                reason: 'database_lookup_error',
+                provider: 'credentials',
+                error: error instanceof Error ? error.message : String(error),
+              },
+              'Database user lookup failed during sign-in'
+            );
             // Fall through to admin check
           }
         }
@@ -113,10 +158,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const adminEmail = process.env.ADMIN_EMAIL || 'admin@socialcat.com';
         const adminPassword = process.env.ADMIN_PASSWORD || 'admin';
 
-        if (
-          credentials.email === adminEmail &&
-          credentials.password === adminPassword
-        ) {
+        if (email === adminEmail && credentials.password === adminPassword) {
+          logger.info(
+            {
+              userId: '1',
+              email: adminEmail,
+              action: 'user_signin_success',
+              timestamp: new Date().toISOString(),
+              metadata: { provider: 'credentials', userSource: 'environment' },
+            },
+            'Admin user signed in successfully'
+          );
           return {
             id: '1',
             email: adminEmail,
@@ -124,6 +176,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           };
         }
 
+        logger.warn(
+          {
+            email,
+            action: 'user_signin_failed',
+            timestamp: new Date().toISOString(),
+            reason: 'invalid_credentials',
+            provider: 'credentials',
+          },
+          'Sign-in attempt failed: invalid credentials'
+        );
         return null;
       },
     }),
@@ -139,7 +201,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
   callbacks: {
     async signIn({ user, account }) {
-      console.log('🔐 Sign in:', { user: user.email, provider: account?.provider });
+      logger.debug(
+        {
+          userId: user.id,
+          email: user.email,
+          provider: account?.provider,
+          action: 'signin_callback_start',
+          timestamp: new Date().toISOString(),
+        },
+        'Sign-in callback initiated'
+      );
 
       // Auto-create personal organization on first sign-in
       // Skip in Edge Runtime (organization functions not available)
@@ -147,7 +218,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         try {
           const orgFns = await getOrganizationFunctions();
           if (!orgFns) {
-            console.log('⚠️  Organization functions not available (Edge Runtime)');
+            logger.warn(
+              {
+                userId: user.id,
+                action: 'organization_context_unavailable',
+                timestamp: new Date().toISOString(),
+                reason: 'edge_runtime',
+              },
+              'Organization functions not available (Edge Runtime)'
+            );
             return true;
           }
 
@@ -158,10 +237,29 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             const orgName = user.name ? `${user.name}'s Workspace` : 'My Workspace';
             const org = await orgFns.createOrganization(orgName, user.id);
 
-            console.log('✅ Created personal organization:', org.id);
+            logger.info(
+              {
+                userId: user.id,
+                organizationId: org.id,
+                organizationName: orgName,
+                action: 'organization_auto_created',
+                timestamp: new Date().toISOString(),
+                metadata: { userEmail: user.email },
+              },
+              'Personal organization automatically created for new user'
+            );
           }
         } catch (error) {
-          console.error('❌ Failed to create personal organization:', error);
+          logger.error(
+            {
+              userId: user.id,
+              email: user.email,
+              action: 'organization_creation_failed',
+              timestamp: new Date().toISOString(),
+              error: error instanceof Error ? error.message : String(error),
+            },
+            'Failed to create personal organization during sign-in'
+          );
           // Don't block sign-in if org creation fails
         }
       }
@@ -197,7 +295,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         try {
           const orgFns = await getOrganizationFunctions();
           if (!orgFns) {
-            console.log('⚠️  Organization functions not available (Edge Runtime)');
+            logger.warn(
+              {
+                userId: token.id,
+                action: 'organization_context_unavailable',
+                timestamp: new Date().toISOString(),
+                reason: 'edge_runtime',
+              },
+              'Organization functions not available (Edge Runtime) during JWT callback'
+            );
             return token;
           }
 
@@ -209,9 +315,30 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             const org = orgs[0];
             token.organizationId = org.id;
             token.role = org.role;
+
+            logger.debug(
+              {
+                userId: token.id,
+                organizationId: org.id,
+                role: org.role,
+                action: 'organization_context_loaded',
+                timestamp: new Date().toISOString(),
+                metadata: { trigger },
+              },
+              'Organization context loaded into JWT token'
+            );
           }
         } catch (error) {
-          console.error('❌ Failed to load organization context:', error);
+          logger.error(
+            {
+              userId: token.id,
+              action: 'organization_context_load_failed',
+              timestamp: new Date().toISOString(),
+              error: error instanceof Error ? error.message : String(error),
+              metadata: { trigger },
+            },
+            'Failed to load organization context during JWT callback'
+          );
         }
       }
 
@@ -233,24 +360,55 @@ export async function getServerSession() {
   const session = await auth();
 
   if (!session?.user?.id) {
+    logger.debug(
+      {
+        action: 'get_server_session_failed',
+        timestamp: new Date().toISOString(),
+        reason: 'no_active_session',
+      },
+      'Failed to retrieve server session: no active user'
+    );
     return null;
   }
 
   // Ensure organization context is loaded
   if (!session.user.organizationId) {
-    console.warn('⚠️  Session missing organization context, reloading...');
+    logger.warn(
+      {
+        userId: session.user.id,
+        action: 'session_missing_organization_context',
+        timestamp: new Date().toISOString(),
+      },
+      'Session missing organization context, attempting to reload'
+    );
 
     // Try to load organization context
     // Skip in Edge Runtime
     if (process.env.NEXT_RUNTIME === 'edge') {
-      console.warn('⚠️  Cannot load organization context in Edge Runtime');
+      logger.warn(
+        {
+          userId: session.user.id,
+          action: 'organization_context_load_failed',
+          timestamp: new Date().toISOString(),
+          reason: 'edge_runtime',
+        },
+        'Cannot load organization context in Edge Runtime'
+      );
       return null;
     }
 
     try {
       const orgFns = await getOrganizationFunctions();
       if (!orgFns) {
-        console.error('❌ Organization functions not available');
+        logger.error(
+          {
+            userId: session.user.id,
+            action: 'organization_context_load_failed',
+            timestamp: new Date().toISOString(),
+            reason: 'org_functions_unavailable',
+          },
+          'Organization functions not available'
+        );
         return null;
       }
 
@@ -259,12 +417,39 @@ export async function getServerSession() {
         const org = orgs[0];
         session.user.organizationId = org.id;
         session.user.role = org.role;
+
+        logger.debug(
+          {
+            userId: session.user.id,
+            organizationId: org.id,
+            role: org.role,
+            action: 'session_organization_context_loaded',
+            timestamp: new Date().toISOString(),
+          },
+          'Organization context successfully loaded for session'
+        );
       } else {
-        console.error('❌ User has no organizations');
+        logger.error(
+          {
+            userId: session.user.id,
+            action: 'session_no_organizations_found',
+            timestamp: new Date().toISOString(),
+            reason: 'user_has_no_organizations',
+          },
+          'User has no organizations'
+        );
         return null;
       }
     } catch (error) {
-      console.error('❌ Failed to load organization context:', error);
+      logger.error(
+        {
+          userId: session.user.id,
+          action: 'session_organization_context_load_failed',
+          timestamp: new Date().toISOString(),
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'Failed to load organization context for session'
+      );
       return null;
     }
   }
@@ -280,10 +465,27 @@ export async function requireAuth() {
   const session = await getServerSession();
 
   if (!session) {
+    logger.warn(
+      {
+        action: 'authorization_failed',
+        timestamp: new Date().toISOString(),
+        reason: 'no_active_session',
+      },
+      'Authorization failed: no active session'
+    );
     throw new Error('Unauthorized: No active session');
   }
 
   if (!session.user.organizationId) {
+    logger.warn(
+      {
+        userId: session.user.id,
+        action: 'authorization_failed',
+        timestamp: new Date().toISOString(),
+        reason: 'no_organization_context',
+      },
+      'Authorization failed: user has no organization context'
+    );
     throw new Error('Unauthorized: No organization context');
   }
 

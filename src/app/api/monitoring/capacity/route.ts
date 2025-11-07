@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 import { getWorkflowQueueStats } from '@/lib/workflows/workflow-queue';
 import { workflowScheduler } from '@/lib/workflows/workflow-scheduler';
 import { pool } from '@/lib/db';
@@ -83,7 +84,13 @@ export async function GET() {
 
     return NextResponse.json(capacity);
   } catch (error) {
-    console.error('Capacity monitoring error:', error);
+    logger.error(
+      {
+        error: error instanceof Error ? error.message : String(error),
+        action: 'capacity_monitoring_fetch_failed'
+      },
+      'Capacity monitoring error'
+    );
     return NextResponse.json(
       { error: 'Failed to fetch capacity metrics' },
       { status: 500 }

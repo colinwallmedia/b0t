@@ -111,7 +111,6 @@ export default function DashboardPage() {
         const response = await fetch(url);
         if (response.ok) {
           const data = await response.json();
-          console.log('Dashboard stats:', data); // Debug log
           setStats(data);
         } else {
           console.error('Failed to fetch stats:', response.status);

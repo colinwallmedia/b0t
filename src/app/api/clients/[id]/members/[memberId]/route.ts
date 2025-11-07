@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { removeOrganizationMember, getUserRoleInOrganization } from '@/lib/organizations';
+import { logger } from '@/lib/logger';
 import { db } from '@/lib/db';
 import { organizationMembersTable } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
@@ -53,7 +54,16 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Failed to remove member:', error);
+    const { id, memberId } = await params;
+    logger.error(
+      {
+        error: error instanceof Error ? error.message : String(error),
+        organizationId: id,
+        memberId,
+        action: 'client_member_remove_failed'
+      },
+      'Failed to remove client member'
+    );
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
