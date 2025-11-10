@@ -12,7 +12,7 @@ export interface WorkflowExport {
   name: string;
   description: string;
   trigger?: {
-    type: 'manual' | 'cron' | 'webhook' | 'telegram' | 'discord' | 'chat';
+    type: 'manual' | 'cron' | 'webhook' | 'telegram' | 'discord' | 'chat' | 'chat-input';
     config: Record<string, unknown>;
   };
   config: {
@@ -22,12 +22,13 @@ export interface WorkflowExport {
       inputs: Record<string, unknown>;
       outputAs?: string;
     }>;
+    returnValue?: string;
     outputDisplay?: {
-      type: 'table' | 'list' | 'text' | 'markdown' | 'json' | 'image' | 'images';
+      type: 'table' | 'list' | 'text' | 'markdown' | 'json' | 'image' | 'images' | 'chart';
       columns?: Array<{
         key: string;
         label: string;
-        type?: 'text' | 'link' | 'date' | 'number' | 'image';
+        type?: 'text' | 'link' | 'date' | 'number' | 'boolean';
       }>;
     };
   };
@@ -53,12 +54,13 @@ export function exportWorkflow(
       inputs: Record<string, unknown>;
       outputAs?: string;
     }>;
+    returnValue?: string;
     outputDisplay?: {
-      type: 'table' | 'list' | 'text' | 'markdown' | 'json' | 'image' | 'images';
+      type: 'table' | 'list' | 'text' | 'markdown' | 'json' | 'image' | 'images' | 'chart';
       columns?: Array<{
         key: string;
         label: string;
-        type?: 'text' | 'link' | 'date' | 'number' | 'image';
+        type?: 'text' | 'link' | 'date' | 'number' | 'boolean';
       }>;
     };
   },
@@ -98,12 +100,13 @@ export function exportWorkflowToJSON(
       inputs: Record<string, unknown>;
       outputAs?: string;
     }>;
+    returnValue?: string;
     outputDisplay?: {
-      type: 'table' | 'list' | 'text' | 'markdown' | 'json' | 'image' | 'images';
+      type: 'table' | 'list' | 'text' | 'markdown' | 'json' | 'image' | 'images' | 'chart';
       columns?: Array<{
         key: string;
         label: string;
-        type?: 'text' | 'link' | 'date' | 'number' | 'image';
+        type?: 'text' | 'link' | 'date' | 'number' | 'boolean';
       }>;
     };
   },
@@ -171,6 +174,14 @@ export function importWorkflow(jsonData: string): WorkflowExport {
           `Step ${step.id} has invalid module path: ${step.module}. Expected format: category.module.function`
         );
       }
+    }
+
+    // Validate output configuration (comprehensive validation)
+    const validation = validateWorkflowExport(workflow);
+    if (!validation.valid) {
+      throw new Error(
+        `Workflow validation failed:\n${validation.errors.map(e => `  - ${e}`).join('\n')}`
+      );
     }
 
     logger.info(
@@ -243,6 +254,83 @@ export function validateWorkflowExport(workflow: unknown): {
           }
         }
       });
+    }
+
+    // Validate output configuration
+    if (config.outputDisplay) {
+      if (typeof config.outputDisplay !== 'object') {
+        errors.push('config.outputDisplay must be an object');
+      } else {
+        const output = config.outputDisplay as Record<string, unknown>;
+
+        // Validate type
+        if (!output.type) {
+          errors.push('config.outputDisplay missing required field: type');
+        } else if (typeof output.type !== 'string') {
+          errors.push('config.outputDisplay.type must be a string');
+        } else {
+          const validTypes = ['table', 'list', 'text', 'markdown', 'json', 'image', 'images', 'chart'];
+          if (!validTypes.includes(output.type as string)) {
+            errors.push(`config.outputDisplay.type must be one of: ${validTypes.join(', ')}. Got: ${output.type}`);
+          }
+
+          // Validate table-specific configuration
+          if (output.type === 'table') {
+            if (!output.columns) {
+              errors.push('config.outputDisplay.type "table" requires columns array');
+            } else if (!Array.isArray(output.columns)) {
+              errors.push('config.outputDisplay.columns must be an array');
+            } else if (output.columns.length === 0) {
+              errors.push('config.outputDisplay.columns cannot be empty for table display');
+            } else {
+              (output.columns as unknown[]).forEach((col: unknown, idx: number) => {
+                if (!col || typeof col !== 'object') {
+                  errors.push(`config.outputDisplay.columns[${idx}] must be an object`);
+                  return;
+                }
+                const column = col as Record<string, unknown>;
+                if (!column.key || typeof column.key !== 'string') {
+                  errors.push(`config.outputDisplay.columns[${idx}] missing required field: key (string)`);
+                }
+                if (!column.label || typeof column.label !== 'string') {
+                  errors.push(`config.outputDisplay.columns[${idx}] missing required field: label (string)`);
+                }
+                if (column.type && typeof column.type === 'string') {
+                  const validColumnTypes = ['text', 'link', 'date', 'number', 'boolean'];
+                  if (!validColumnTypes.includes(column.type as string)) {
+                    errors.push(`config.outputDisplay.columns[${idx}].type must be one of: ${validColumnTypes.join(', ')}. Got: ${column.type}`);
+                  }
+                }
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // Validate returnValue if specified
+    if (config.returnValue !== undefined) {
+      if (typeof config.returnValue !== 'string') {
+        errors.push('config.returnValue must be a string (e.g., "{{variableName}}")');
+      } else if (!/^\{\{[^}]+\}\}$/.test(config.returnValue as string)) {
+        errors.push(`config.returnValue must be in format {{variableName}}. Got: ${config.returnValue}`);
+      } else {
+        // Check if returnValue references a valid step output
+        const varName = (config.returnValue as string).match(/^\{\{([^}]+)\}\}$/)?.[1];
+        if (varName && Array.isArray(config.steps)) {
+          const stepOutputs = config.steps.map((s: unknown) => {
+            const step = s as Record<string, unknown>;
+            return step.outputAs as string;
+          }).filter(Boolean);
+
+          // Extract base variable name (before any dot notation)
+          const baseVar = varName.split('.')[0].split('[')[0];
+
+          if (!stepOutputs.includes(baseVar)) {
+            errors.push(`config.returnValue references unknown variable: ${baseVar}. Available: ${stepOutputs.join(', ')}`);
+          }
+        }
+      }
     }
   }
 

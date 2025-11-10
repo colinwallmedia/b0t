@@ -69,8 +69,11 @@ export function RunOutputModal({
   const returnValue = (configObj?.returnValue as string | undefined) || (outputDisplay?.returnValue as string | undefined);
 
   // Apply returnValue to extract the specific data from run.output if configured
+  // NOTE: As of the executor fix, run.output already contains the extracted value from returnValue
+  // This code handles backward compatibility for old runs that stored full context.variables
   let processedOutput = run.output;
-  if (returnValue && run.output && typeof run.output === 'object') {
+  if (returnValue && run.output && typeof run.output === 'object' && !Array.isArray(run.output)) {
+    // Only try to extract if run.output is an object (not already an array)
     // Parse template string like "{{sortedProducts}}" or "{{result.data}}"
     const match = returnValue.match(/^\{\{([^}]+)\}\}$/);
     if (match) {
@@ -92,6 +95,10 @@ export function RunOutputModal({
       console.log(`[RunOutputModal] Applied returnValue: "${returnValue}", extracted:`, Array.isArray(value) ? `array[${value.length}]` : typeof value);
       processedOutput = value;
     }
+  } else if (returnValue && Array.isArray(run.output)) {
+    // run.output is already the extracted array (new behavior after executor fix)
+    console.log(`[RunOutputModal] returnValue configured and run.output is already extracted array[${run.output.length}]`);
+    processedOutput = run.output;
   } else if (returnValue) {
     console.log(`[RunOutputModal] returnValue configured but not applied:`, { returnValue, hasOutput: !!run.output, isObject: typeof run.output === 'object' });
   } else if (!returnValue && run.output && typeof run.output === 'object' && !Array.isArray(run.output)) {
@@ -135,11 +142,43 @@ export function RunOutputModal({
           Workflow execution output
         </DialogDescription>
         {run.status === 'success' && run.output !== undefined ? (
-          <OutputRenderer
-            output={processedOutput}
-            modulePath={modulePath}
-            displayHint={outputDisplayHint}
-          />
+          <>
+            {/* Debug panel - only show when output is problematic */}
+            {(Array.isArray(processedOutput) && processedOutput.length === 0) || (!Array.isArray(processedOutput) && outputDisplayHint?.type === 'table') ? (
+              <div className="mb-4 rounded-lg border border-blue-500/50 bg-blue-500/5 p-3">
+                <details className="text-sm">
+                  <summary className="cursor-pointer font-medium text-blue-600 dark:text-blue-400 select-none">
+                    Workflow Execution Details
+                  </summary>
+                  <div className="mt-3 space-y-3 text-xs">
+                    <div className="bg-black/5 dark:bg-white/5 rounded p-3 font-mono">
+                      <div className="space-y-1 text-muted-foreground">
+                        <div className="font-semibold mb-2">Execution Summary:</div>
+                        <div>Status: <span className="text-green-600 dark:text-green-400">{run.status}</span></div>
+                        <div>Duration: {run.duration ? `${run.duration}ms` : 'N/A'}</div>
+                        <div>Output Type: {Array.isArray(processedOutput) ? `Array[${processedOutput.length}]` : typeof processedOutput}</div>
+                        <div>Display Mode: {outputDisplayHint?.type || 'auto-detected'}</div>
+                        {returnValue && <div>Return Value: {returnValue}</div>}
+                      </div>
+                    </div>
+
+                    <div className="bg-black/5 dark:bg-white/5 rounded p-3">
+                      <div className="font-semibold mb-2 font-mono text-muted-foreground">Raw Output Sample:</div>
+                      <pre className="text-[10px] font-mono text-muted-foreground whitespace-pre-wrap break-all">
+{JSON.stringify(processedOutput, null, 2).slice(0, 300)}{JSON.stringify(processedOutput).length > 300 ? '\n...(truncated)' : ''}
+                      </pre>
+                    </div>
+                  </div>
+                </details>
+              </div>
+            ) : null}
+
+            <OutputRenderer
+              output={processedOutput}
+              modulePath={modulePath}
+              displayHint={outputDisplayHint}
+            />
+          </>
         ) : run.status === 'error' ? (
           <div className="rounded-lg border border-red-500/50 bg-red-500/10 p-4">
             <h4 className="text-sm font-semibold text-red-600 dark:text-red-400 mb-2">

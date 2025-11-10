@@ -14,6 +14,7 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { spawn } from 'child_process';
+import { type WorkflowExport } from '../src/lib/workflows/import-export';
 
 const API_URL = process.env.API_URL || 'http://localhost:3000';
 
@@ -63,35 +64,6 @@ function startServer(): Promise<void> {
       }
     }, 1000);
   });
-}
-
-interface WorkflowExport {
-  version: string;
-  name: string;
-  description: string;
-  config: {
-    steps: Array<{
-      id: string;
-      module: string;
-      inputs: Record<string, unknown>;
-      outputAs?: string;
-    }>;
-    outputDisplay?: {
-      type: 'table' | 'list' | 'text' | 'markdown' | 'json' | 'image' | 'images' | 'number';
-      columns?: Array<{
-        key: string;
-        label: string;
-        type: string;
-      }>;
-      content?: string;
-    };
-  };
-  metadata?: {
-    author?: string;
-    tags?: string[];
-    category?: string;
-    requiresCredentials?: string[];
-  };
 }
 
 interface ExecutionResult {
@@ -144,11 +116,8 @@ function checkOutputCompatibility(
       }
       break;
 
-    case 'number':
-      if (typeof output !== 'number') {
-        warnings.push(`❌ Output type mismatch: Display expects "number" but workflow output is ${outputType}`);
-        warnings.push(`   💡 Fix: Change the final step to return a number, or change outputDisplay.type to "json"`);
-      }
+    case 'chart':
+      // Chart type accepts various data formats
       break;
 
     case 'image':

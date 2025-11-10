@@ -66,16 +66,82 @@ export function DataTable({ data, config }: DataTableProps) {
   // Handle array of objects
   if (!Array.isArray(data)) {
     return (
-      <div className="rounded-lg border border-border/50 bg-surface/50 p-4">
-        <p className="text-sm text-muted-foreground">
-          Table display requires array data. Use <code className="text-xs bg-muted px-1 py-0.5 rounded">type: &quot;text&quot;</code> or <code className="text-xs bg-muted px-1 py-0.5 rounded">type: &quot;json&quot;</code> for single values.
-        </p>
+      <div className="rounded-lg border border-red-500/50 bg-red-500/5 p-4">
+        <div className="space-y-3">
+          <div>
+            <p className="text-sm font-semibold text-red-600 dark:text-red-400">
+              Type Mismatch: Table Display Error
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Table display requires array data. Received: <code className="bg-muted px-1 py-0.5 rounded">{typeof data}</code>
+            </p>
+          </div>
+          <details className="text-xs">
+            <summary className="cursor-pointer font-medium text-muted-foreground hover:text-foreground select-none">
+              Technical Details
+            </summary>
+            <div className="mt-2 bg-black/5 dark:bg-white/5 rounded p-3 font-mono space-y-2">
+              <div className="text-muted-foreground">
+                <div className="mb-2 font-semibold">Type Analysis:</div>
+                <div>Expected: Array</div>
+                <div>Received: {typeof data}</div>
+                <div>Display Mode: Table</div>
+              </div>
+              <div className="text-muted-foreground">
+                <div className="mb-2 font-semibold">Data Preview:</div>
+                <pre className="text-[10px] whitespace-pre-wrap break-all">
+{JSON.stringify(data, null, 2).slice(0, 200)}{JSON.stringify(data).length > 200 ? '...(truncated)' : ''}
+                </pre>
+              </div>
+              <div className="text-muted-foreground">
+                <div className="mb-2 font-semibold">Resolution Steps:</div>
+                <div>1. Verify transform step returns array</div>
+                <div>2. Check returnValue extracts correct field</div>
+                <div>3. Use outputDisplay type: &quot;json&quot; for objects</div>
+                <div>4. Review workflow JSON structure</div>
+              </div>
+            </div>
+          </details>
+        </div>
       </div>
     );
   }
 
   if (data.length === 0) {
-    return <div className="text-sm text-muted-foreground">No data to display</div>;
+    return (
+      <div className="rounded-lg border border-yellow-500/50 bg-yellow-500/5 p-4">
+        <div className="space-y-3">
+          <div>
+            <p className="text-sm font-semibold text-yellow-600 dark:text-yellow-400">
+              Empty Result Set
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Workflow executed successfully but returned 0 items.
+            </p>
+          </div>
+          <details className="text-xs">
+            <summary className="cursor-pointer font-medium text-muted-foreground hover:text-foreground select-none">
+              Technical Details
+            </summary>
+            <div className="mt-2 bg-black/5 dark:bg-white/5 rounded p-3 font-mono space-y-1">
+              <div className="text-muted-foreground">
+                <div className="mb-2 font-semibold">Output Analysis:</div>
+                <div>Type: Array</div>
+                <div>Length: 0</div>
+                <div>Display Mode: Table</div>
+              </div>
+              <div className="text-muted-foreground mt-3">
+                <div className="mb-2 font-semibold">Common Causes:</div>
+                <div>1. API/source returned no matching results</div>
+                <div>2. Query parameters too restrictive (date range, filters)</div>
+                <div>3. Transform/filter step removed all items</div>
+                <div>4. Data source temporarily empty</div>
+              </div>
+            </div>
+          </details>
+        </div>
+      </div>
+    );
   }
 
   // Infer columns if not provided

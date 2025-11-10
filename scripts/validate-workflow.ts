@@ -12,37 +12,8 @@
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { validateWorkflowExport } from '../src/lib/workflows/import-export';
+import { validateWorkflowExport, type WorkflowExport } from '../src/lib/workflows/import-export';
 import { getModuleRegistry } from '../src/lib/workflows/module-registry';
-
-interface WorkflowExport {
-  version: string;
-  name: string;
-  description: string;
-  config: {
-    steps: Array<{
-      id: string;
-      module: string;
-      inputs: Record<string, unknown>;
-      outputAs?: string;
-    }>;
-    outputDisplay?: {
-      type: 'table' | 'list' | 'text' | 'markdown' | 'json' | 'image' | 'images' | 'number';
-      columns?: Array<{
-        key: string;
-        label: string;
-        type: string;
-      }>;
-      content?: string;
-    };
-  };
-  metadata?: {
-    author?: string;
-    tags?: string[];
-    category?: string;
-    requiresCredentials?: string[];
-  };
-}
 
 function validateModulePaths(workflow: WorkflowExport): string[] {
   const errors: string[] = [];
@@ -182,12 +153,6 @@ function validateOutputDisplay(workflow: WorkflowExport): string[] {
       );
       break;
 
-    case 'number':
-      warnings.push(
-        `⚠️  Output display type is "number" - ensure final step (${lastStep.id}) returns a number`
-      );
-      break;
-
     case 'image':
       warnings.push(
         `⚠️  Output display type is "image" - ensure final step (${lastStep.id}) returns an image URL or buffer`
@@ -197,6 +162,12 @@ function validateOutputDisplay(workflow: WorkflowExport): string[] {
     case 'images':
       warnings.push(
         `⚠️  Output display type is "images" - ensure final step (${lastStep.id}) returns an array of image URLs or buffers`
+      );
+      break;
+
+    case 'chart':
+      warnings.push(
+        `⚠️  Output display type is "chart" - ensure final step (${lastStep.id}) returns data suitable for charting`
       );
       break;
 
@@ -344,11 +315,14 @@ async function validateWorkflow(workflowJson: string): Promise<void> {
         console.log(`   ${warning}`);
       });
       console.log('\n💡 Output display type guide:');
-      console.log('   • table  → Array of objects with columns defined');
-      console.log('   • list   → Array of primitives (strings/numbers)');
-      console.log('   • text   → String value');
-      console.log('   • number → Numeric value');
-      console.log('   • json   → Any value (auto-formatted)');
+      console.log('   • table    → Array of objects with columns defined');
+      console.log('   • list     → Array of primitives (strings/numbers)');
+      console.log('   • text     → String value');
+      console.log('   • markdown → Markdown-formatted string');
+      console.log('   • chart    → Data suitable for charting');
+      console.log('   • image    → Single image URL or buffer');
+      console.log('   • images   → Array of image URLs or buffers');
+      console.log('   • json     → Any value (auto-formatted)');
     } else {
       console.log('✅ Output display configuration looks good (or will use auto-detection)');
     }
