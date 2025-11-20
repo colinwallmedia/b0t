@@ -23,7 +23,7 @@ Webhook triggers provide a `trigger` object with:
 ```yaml
 trigger: webhook
 webhookSync: true          # REQUIRED if user wants response data back
-webhookSecret: "my-secret" # Optional - enables HMAC signature verification
+# webhookSecret: "key"     # Optional/ADVANCED - requires HMAC signature header (skip for testing)
 ```
 
 **Sync Mode:**

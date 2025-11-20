@@ -471,9 +471,20 @@ async function buildWorkflowFromPlan(planFile: string, autoFix: boolean = true):
 
   console.log('\n✅ Workflow validation passed!\n');
 
-  // Optional: Dry-run test (can be disabled with --skip-dry-run)
-  const skipDryRun = process.argv.includes('--skip-dry-run');
-  if (!skipDryRun) {
+  // Check if workflow uses AI modules (auto-skip dry-run for AI workflows)
+  const hasAIModules = plan.steps.some(step =>
+    step.module.startsWith('ai.') ||
+    step.module.includes('.ai-') ||
+    step.module.includes('openai') ||
+    step.module.includes('anthropic')
+  );
+
+  // Optional: Dry-run test (can be disabled with --skip-dry-run or auto-skipped for AI workflows)
+  const skipDryRun = process.argv.includes('--skip-dry-run') || hasAIModules;
+
+  if (skipDryRun && hasAIModules) {
+    console.log('ℹ️  Skipping dry-run (workflow uses AI modules - requires real API calls)\n');
+  } else if (!skipDryRun) {
     console.log('🧪 Running dry-run test...\n');
     try {
       execSync(`npx tsx scripts/dry-run-workflow.ts "${workflowFile}"`, {

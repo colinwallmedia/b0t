@@ -10,8 +10,8 @@ trigger: webhook                       # Enum: manual|cron|webhook|chat|telegram
 output: json                          # Enum: json|table|list|text|markdown|image|images|chart
 
 # OPTIONAL FIELDS
-webhookSync: true                     # Boolean - for webhook triggers only
-webhookSecret: "secret-key"           # String - for webhook triggers only
+webhookSync: true                     # Boolean - for webhook triggers only (enables sync response)
+# webhookSecret: "key"                # String - ADVANCED: enables HMAC verification (requires signature header)
 returnValue: "{{variableName}}"       # String - what to return (defaults to last step's outputAs)
 outputColumns: [col1, col2]           # Array - for table/list output only
 category: category-name               # String - for organization
