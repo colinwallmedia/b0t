@@ -16,14 +16,15 @@ import pino from 'pino';
  * logger.debug('Debug info', { data: someData });
  */
 
-// IMPORTANT: Check Edge Runtime BEFORE accessing any Node.js APIs
+// IMPORTANT: Check Edge Runtime AND browser BEFORE accessing any Node.js APIs
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge';
+const isBrowser = typeof window !== 'undefined';
 
 // Create logger based on runtime environment
 let pinoLogger: pino.Logger;
 
-if (isEdgeRuntime) {
-  // Simple Edge-compatible logger - no Node.js APIs
+if (isEdgeRuntime || isBrowser) {
+  // Simple Edge/Browser-compatible logger - no Node.js APIs
   pinoLogger = pino({
     level: 'info',
     browser: {
@@ -32,7 +33,7 @@ if (isEdgeRuntime) {
   });
 } else {
   // Node.js runtime - load full logger from separate file
-  // This avoids bundling Node.js APIs into Edge Runtime
+  // This avoids bundling Node.js APIs into Edge Runtime/Browser
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { createNodeLogger } = require('./logger.node');
   pinoLogger = createNodeLogger();

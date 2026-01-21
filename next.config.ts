@@ -56,6 +56,7 @@ const nextConfig: NextConfig = {
     "@node-rs/argon2",
     "@node-rs/bcrypt",
     "pdf-parse",
+    "pino",
   ],
 
   /**
@@ -70,6 +71,15 @@ const nextConfig: NextConfig = {
         "better-sqlite3": "commonjs better-sqlite3",
         "snoowrap": "commonjs snoowrap",
       });
+    } else {
+      // Prevent bundling Node.js-only logger code on the client
+      config.resolve = config.resolve || {};
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        './logger.node': false,
+        './lib/logger.node': false,
+        '@/lib/logger.node': false,
+      };
     }
 
     config.ignoreWarnings = [
