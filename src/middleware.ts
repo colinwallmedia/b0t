@@ -46,6 +46,7 @@ export default auth((req) => {
     '/api/workflows/execute-test', // Test endpoint for development
     '/api/workflows/build-from-plan', // Agent workflow builder (no auth for local agent)
     '/api/modules/search',         // Module search for agent (no auth for local agent)
+    '/api/external',               // External API — authenticated via API key, not session
   ];
 
   // Check if this is a webhook endpoint (pattern: /api/workflows/[id]/webhook)

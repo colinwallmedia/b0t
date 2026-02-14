@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, varchar, integer, index, uniqueIndex, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, serial, text, timestamp, varchar, integer, index, uniqueIndex, jsonb, boolean } from 'drizzle-orm/pg-core';
 
 // ============================================
 // AUTHENTICATION TABLES
@@ -333,6 +333,72 @@ export const agentChatMessagesTable = pgTable('agent_chat_messages', {
 }));
 
 // ============================================
+// API KEY TABLES
+// ============================================
+
+export type ApiKeyPermissions = {
+  workflows: {
+    create: boolean;
+    read: boolean;
+    update: boolean;
+    delete: boolean;
+    execute: boolean;
+  };
+  modules: {
+    read: boolean;
+  };
+  credentials: {
+    read: boolean;
+    create: boolean;
+    delete: boolean;
+  };
+  clients: {
+    read: boolean;
+    create: boolean;
+    update: boolean;
+  };
+};
+
+// API keys table (for external MCP/API access)
+export const apiKeysTable = pgTable('api_keys', {
+  id: varchar('id', { length: 255 }).primaryKey(),
+  name: text('name').notNull(),
+  keyHash: text('key_hash').notNull().unique(),
+  keyPrefix: varchar('key_prefix', { length: 20 }).notNull(),
+  userId: varchar('user_id', { length: 255 }).notNull(),
+  permissions: jsonb('permissions').notNull().$type<ApiKeyPermissions>(),
+  lastUsedAt: timestamp('last_used_at'),
+  expiresAt: timestamp('expires_at'),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  revokedAt: timestamp('revoked_at'),
+}, (table) => ({
+  userIdIdx: index('api_keys_user_id_idx').on(table.userId),
+  keyHashIdx: uniqueIndex('api_keys_key_hash_idx').on(table.keyHash),
+  isActiveIdx: index('api_keys_is_active_idx').on(table.isActive),
+}));
+
+// API audit log table (records every external API call)
+export const apiAuditLogTable = pgTable('api_audit_log', {
+  id: varchar('id', { length: 255 }).primaryKey(),
+  apiKeyId: varchar('api_key_id', { length: 255 }).notNull(),
+  userId: varchar('user_id', { length: 255 }).notNull(),
+  action: varchar('action', { length: 255 }).notNull(),
+  resource: varchar('resource', { length: 255 }),
+  requestMethod: varchar('request_method', { length: 10 }),
+  requestPath: text('request_path'),
+  responseStatus: varchar('response_status', { length: 10 }),
+  metadata: jsonb('metadata'),
+  ipAddress: varchar('ip_address', { length: 45 }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (table) => ({
+  apiKeyIdIdx: index('api_audit_log_api_key_id_idx').on(table.apiKeyId),
+  userIdIdx: index('api_audit_log_user_id_idx').on(table.userId),
+  createdAtIdx: index('api_audit_log_created_at_idx').on(table.createdAt),
+  actionIdx: index('api_audit_log_action_idx').on(table.action),
+}));
+
+// ============================================
 // TYPE EXPORTS
 // ============================================
 
@@ -368,3 +434,7 @@ export type AgentChatSession = typeof agentChatSessionsTable.$inferSelect;
 export type NewAgentChatSession = typeof agentChatSessionsTable.$inferInsert;
 export type AgentChatMessage = typeof agentChatMessagesTable.$inferSelect;
 export type NewAgentChatMessage = typeof agentChatMessagesTable.$inferInsert;
+export type ApiKey = typeof apiKeysTable.$inferSelect;
+export type NewApiKey = typeof apiKeysTable.$inferInsert;
+export type ApiAuditLog = typeof apiAuditLogTable.$inferSelect;
+export type NewApiAuditLog = typeof apiAuditLogTable.$inferInsert;
