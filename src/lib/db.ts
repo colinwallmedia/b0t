@@ -6,7 +6,11 @@ import { logger } from './logger';
 const databaseUrl = process.env.DATABASE_URL;
 
 if (!databaseUrl) {
-  throw new Error('DATABASE_URL environment variable is required. Make sure Docker PostgreSQL is running.');
+  // During Next.js production build, env vars may not be present.
+  // Routes are not invoked at build time so this is safe to skip.
+  if (process.env.NEXT_PHASE !== 'phase-production-build') {
+    throw new Error('DATABASE_URL environment variable is required. Make sure Docker PostgreSQL is running.');
+  }
 }
 
 // Only log in production or if explicitly requested
@@ -31,7 +35,7 @@ const connectionTimeoutMs = parseInt(process.env.DB_CONNECTION_TIMEOUT || '30000
 const idleTimeoutMs = parseInt(process.env.DB_IDLE_TIMEOUT || '30000', 10);
 
 const pool = new Pool({
-  connectionString: databaseUrl,
+  connectionString: databaseUrl ?? '',
   max: maxConnections, // Maximum pool size
   min: minConnections, // Minimum pool size (keep connections warm)
   connectionTimeoutMillis: connectionTimeoutMs, // Timeout when acquiring connection
